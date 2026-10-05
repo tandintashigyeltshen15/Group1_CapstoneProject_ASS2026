@@ -3,11 +3,27 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --primary: #1C59DE;
+  --sidebar: #172B4D;
+  --success: #12B76A;
+  --danger: #F04438;
+  --warning: #F79009;
+  --accent: #6938EF;
+  --muted: #667085;
+  --text: #344054;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-sidebar: var(--sidebar);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-accent: var(--accent);
+  --color-muted: var(--muted);
+  --color-text: var(--text);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
