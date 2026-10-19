@@ -1,0 +1,216 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model alumni_profile {
+  UserID                   Int                  @id
+  Programme                String               @db.VarChar(100)
+  GraduationYear           Int
+  ProfessionalBackground   String?              @db.Text
+  AreaOfExpertise          String?              @db.VarChar(255)
+  IsAvailableForMentorship Boolean              @default(false)
+  IsProfilePublic          Boolean              @default(true)
+  user                     user                 @relation(fields: [UserID], references: [User_id], onDelete: NoAction, onUpdate: NoAction, map: "alumni_profile_ibfk_1")
+  career_history           career_history[]
+  mentorship_request       mentorship_request[]
+  project                  project[]
+  publication              publication[]
+}
+
+model application {
+  Application_id    Int                           @id @default(autoincrement())
+  StudentID         Int
+  OpportunityID     Int
+  ApplicationDate   DateTime                      @default(now()) @db.Timestamp(0)
+  ApplicationStatus application_ApplicationStatus @default(Submitted)
+  student_profile   student_profile               @relation(fields: [StudentID], references: [UserID], onDelete: Cascade, map: "application_ibfk_1")
+  opportunity       opportunity                   @relation(fields: [OpportunityID], references: [Opportunity_id], onDelete: Cascade, map: "application_ibfk_2")
+
+  @@unique([StudentID, OpportunityID], map: "StudentID")
+  @@index([OpportunityID], map: "OpportunityID")
+}
+
+model career_history {
+  Career_id      Int            @id @default(autoincrement())
+  UserID         Int
+  JobTitle       String         @db.VarChar(120)
+  Organization   String         @db.VarChar(150)
+  StartDate      DateTime       @db.Date
+  EndDate        DateTime?      @db.Date
+  Description    String?        @db.VarChar(600)
+  alumni_profile alumni_profile @relation(fields: [UserID], references: [UserID], onDelete: Cascade, map: "career_history_ibfk_1")
+
+  @@index([UserID], map: "UserID")
+}
+
+model event {
+  Event_id           Int                  @id @default(autoincrement())
+  CreatorID          Int
+  Title              String               @db.VarChar(200)
+  Description        String?              @db.Text
+  EventDate          DateTime             @db.Date
+  EventTime          DateTime?            @db.Time(0)
+  Location           String?              @db.VarChar(200)
+  user               user                 @relation(fields: [CreatorID], references: [User_id], onDelete: Cascade, map: "event_ibfk_1")
+  event_registration event_registration[]
+
+  @@index([CreatorID], map: "CreatorID")
+}
+
+model event_registration {
+  Registration_id  Int      @id @default(autoincrement())
+  UserID           Int
+  EventID          Int
+  RegistrationDate DateTime @default(now()) @db.Timestamp(0)
+  user             user     @relation(fields: [UserID], references: [User_id], onDelete: Cascade, map: "event_registration_ibfk_1")
+  event            event    @relation(fields: [EventID], references: [Event_id], onDelete: Cascade, map: "event_registration_ibfk_2")
+
+  @@unique([UserID, EventID], map: "UserID")
+  @@index([EventID], map: "EventID")
+}
+
+model mentorship_request {
+  Request_id      Int                       @id @default(autoincrement())
+  StudentID       Int
+  AlumniID        Int
+  RequestDetails  String?                   @db.Text
+  RequestDate     DateTime                  @default(now()) @db.Timestamp(0)
+  Status          mentorship_request_Status @default(Pending)
+  ActiveKey       Int?                      @db.TinyInt
+  student_profile student_profile           @relation(fields: [StudentID], references: [UserID], onDelete: Cascade, map: "mentorship_request_ibfk_1")
+  alumni_profile  alumni_profile            @relation(fields: [AlumniID], references: [UserID], onDelete: Cascade, map: "mentorship_request_ibfk_2")
+
+  @@unique([StudentID, AlumniID, ActiveKey], map: "uq_one_active_request")
+  @@index([AlumniID], map: "AlumniID")
+}
+
+model notification {
+  Notification_id  Int      @id @default(autoincrement())
+  UserID           Int
+  NotificationType String   @db.VarChar(50)
+  Message          String   @db.Text
+  CreatedAt        DateTime @default(now()) @db.Timestamp(0)
+  IsRead           Boolean  @default(false)
+  user             user     @relation(fields: [UserID], references: [User_id], onDelete: Cascade, map: "notification_ibfk_1")
+
+  @@index([UserID], map: "UserID")
+}
+
+model opportunity {
+  Opportunity_id          Int                @id @default(autoincrement())
+  CreatorID               Int
+  Title                   String             @db.VarChar(200)
+  Description             String?            @db.Text
+  Deadline                DateTime?          @db.Date
+  EligibilityRequirements String?            @db.Text
+  Status                  opportunity_Status @default(Open)
+  application             application[]
+  user                    user               @relation(fields: [CreatorID], references: [User_id], onDelete: Cascade, map: "opportunity_ibfk_1")
+
+  @@index([CreatorID], map: "CreatorID")
+}
+
+model project {
+  Project_id     Int            @id @default(autoincrement())
+  UserID         Int
+  Title          String         @db.VarChar(150)
+  Description    String?        @db.VarChar(800)
+  Url            String?        @db.VarChar(255)
+  Year           Int?           @db.SmallInt
+  alumni_profile alumni_profile @relation(fields: [UserID], references: [UserID], onDelete: Cascade, map: "project_ibfk_1")
+
+  @@index([UserID], map: "UserID")
+}
+
+model publication {
+  Publication_id Int            @id @default(autoincrement())
+  UserID         Int
+  Title          String         @db.VarChar(200)
+  Venue          String?        @db.VarChar(150)
+  Year           Int?           @db.SmallInt
+  Url            String?        @db.VarChar(255)
+  alumni_profile alumni_profile @relation(fields: [UserID], references: [UserID], onDelete: Cascade, map: "publication_ibfk_1")
+
+  @@index([UserID], map: "UserID")
+}
+
+model role {
+  Role_id  Int    @id @default(autoincrement())
+  RoleName String @unique(map: "RoleName") @db.VarChar(50)
+  user     user[]
+}
+
+model staff_profile {
+  UserID      Int    @id
+  Department  String @db.VarChar(100)
+  Designation String @db.VarChar(100)
+  user        user   @relation(fields: [UserID], references: [User_id], onDelete: NoAction, onUpdate: NoAction, map: "staff_profile_ibfk_1")
+}
+
+model student_profile {
+  UserID             Int                  @id
+  Programme          String               @db.VarChar(100)
+  YearOfStudy        Int
+  application        application[]
+  mentorship_request mentorship_request[]
+  user               user                 @relation(fields: [UserID], references: [User_id], onDelete: NoAction, onUpdate: NoAction, map: "student_profile_ibfk_1")
+}
+
+model user {
+  User_id            Int                     @id @default(autoincrement())
+  Role_id            Int
+  Name               String                  @db.VarChar(100)
+  Email              String                  @unique(map: "Email") @db.VarChar(255)
+  Password           String                  @db.VarChar(255)
+  AccountStatus      user_AccountStatus      @default(Active)
+  CreatedAt          DateTime                @default(now()) @db.Timestamp(0)
+  VerificationStatus user_VerificationStatus @default(Pending)
+  RejectionReason    String?                 @db.Text
+  alumni_profile     alumni_profile?
+  event              event[]
+  event_registration event_registration[]
+  notification       notification[]
+  opportunity        opportunity[]
+  staff_profile      staff_profile?
+  student_profile    student_profile?
+  role               role                    @relation(fields: [Role_id], references: [Role_id], onDelete: NoAction, onUpdate: NoAction, map: "user_ibfk_1")
+
+  @@index([Role_id], map: "Role_id")
+}
+
+enum application_ApplicationStatus {
+  Submitted
+  Under_Review @map("Under Review")
+  Shortlisted
+  Accepted
+  Rejected
+  Withdrawn
+}
+
+enum mentorship_request_Status {
+  Pending
+  Accepted
+  Declined
+}
+
+enum user_AccountStatus {
+  Active
+  Inactive
+  Suspended
+}
+
+enum opportunity_Status {
+  Open
+  Closed
+}
+
+enum user_VerificationStatus {
+  Pending
+  Approved
+  Rejected
+}
