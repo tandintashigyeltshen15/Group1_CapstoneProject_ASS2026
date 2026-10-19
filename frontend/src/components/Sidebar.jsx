@@ -5,31 +5,34 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Home,
-  BookOpen,
-  User,
+  UserRound,
+  Users,
+  HeartHandshake,
   Briefcase,
   CalendarDays,
   ClipboardList,
   Settings,
   Bell,
-  IdCard,
   LogOut,
 } from "lucide-react";
+import { useStore } from "@/lib/store";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: Home },
-  { label: "Alumni Hub", href: "/alumni-hub", icon: BookOpen },
-  { label: "Mentorship", href: "/mentorship", icon: User },
-  { label: "Internships", href: "/internships", icon: Briefcase },
+  { label: "Mentorship Requests", href: "/mentorship", icon: Users },
+  { label: "Internship Postings", href: "/internships", icon: Briefcase },
   { label: "Events", href: "/events", icon: CalendarDays },
-  { label: "My Applications", href: "/applications", icon: ClipboardList },
+  { label: "Applications", href: "/applications", icon: ClipboardList },
+  { label: "Contributions", href: "/contributions", icon: HeartHandshake },
   { label: "Settings", href: "/settings", icon: Settings },
   { label: "Notifications", href: "/notifications", icon: Bell },
-  { label: "My Profile", href: "/profile", icon: IdCard },
+  { label: "Alumni Profile", href: "/profile", icon: UserRound },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [notifications] = useStore("notifications");
+  const unread = notifications.filter((n) => !n.isRead).length;
 
   return (
     <aside className="bg-sidebar text-white w-64 h-screen shrink-0 flex flex-col px-4 py-6">
@@ -51,7 +54,7 @@ export default function Sidebar() {
         </span>
       </div>
 
-      <nav className="flex flex-col gap-1 flex-1">
+      <nav className="flex flex-col gap-1 flex-1 overflow-y-auto">
         {navItems.map(({ label, href, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + "/");
           return (
@@ -65,7 +68,12 @@ export default function Sidebar() {
               }`}
             >
               <Icon size={18} />
-              {label}
+              <span className="flex-1">{label}</span>
+              {href === "/notifications" && unread > 0 && (
+                <span className="rounded-full bg-danger px-2 py-0.5 text-[11px] font-semibold text-white">
+                  {unread}
+                </span>
+              )}
             </Link>
           );
         })}
