@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -14,9 +15,12 @@ import {
   Bell,
   IdCard,
   LogOut,
+  Users,
+  FileText,
+  ShieldCheck,
 } from "lucide-react";
 
-const navItems = [
+const studentNavItems = [
   { label: "Dashboard", href: "/dashboard", icon: Home },
   { label: "Alumni Hub", href: "/alumni-hub", icon: BookOpen },
   { label: "Mentorship", href: "/mentorship", icon: User },
@@ -28,9 +32,26 @@ const navItems = [
   { label: "My Profile", href: "/profile", icon: IdCard },
 ];
 
-export default function Sidebar() {
+const adminNavItems = [
+  { label: "Dashboard", href: "/admin/dashboard", icon: Home },
+  { label: "User Management", href: "/admin/users", icon: Users },
+  { label: "Opportunity Management", href: "/admin/opportunities", icon: Briefcase },
+  { label: "Events Management", href: "/admin/events", icon: CalendarDays },
+  { label: "Contributions", href: "/admin/contributions", icon: FileText },
+  { label: "Reports", href: "/admin/reports", icon: ClipboardList },
+  { label: "Notifications", href: "/admin/notifications", icon: Bell },
+  { label: "Settings", href: "/admin/settings", icon: Settings },
+];
+
+export default function Sidebar({ role = "Student" }) {
   const pathname = usePathname();
   const router = useRouter();
+
+  const navItems =
+    role.toLowerCase() === "admin" ||
+    role.toLowerCase() === "administrator"
+      ? adminNavItems
+      : studentNavItems;
 
   const logout = () => {
     localStorage.removeItem("token");
@@ -60,7 +81,9 @@ export default function Sidebar() {
 
       <nav className="flex flex-col gap-1 flex-1">
         {navItems.map(({ label, href, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(href + "/");
+          const active =
+            pathname === href || pathname.startsWith(href + "/");
+
           return (
             <Link
               key={href}
