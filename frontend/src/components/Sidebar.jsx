@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Home,
   BookOpen,
@@ -30,6 +30,13 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    router.push("/login");
+  };
 
   return (
     <aside className="bg-sidebar text-white w-64 h-screen shrink-0 flex flex-col px-4 py-6">
@@ -37,8 +44,8 @@ export default function Sidebar() {
         <Image
           src="/cst-logo.png"
           alt="CST logo"
-          width={72}
-          height={72}
+          width={96}
+          height={96}
           className="h-24 w-24 shrink-0"
           priority
         />
@@ -74,6 +81,7 @@ export default function Sidebar() {
       <div className="mt-4 border-t border-white/15 pt-4">
         <button
           type="button"
+          onClick={logout}
           className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-danger transition-colors hover:bg-white/10"
         >
           <LogOut size={18} />
