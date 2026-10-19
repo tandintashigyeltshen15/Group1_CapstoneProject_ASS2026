@@ -1,38 +1,63 @@
+
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Home,
-  UserRound,
-  Users,
-  HeartHandshake,
+  BookOpen,
+  User,
   Briefcase,
   CalendarDays,
   ClipboardList,
   Settings,
   Bell,
+  IdCard,
   LogOut,
+  Users,
+  FileText,
+  ShieldCheck,
 } from "lucide-react";
-import { useStore } from "@/lib/store";
 
-const navItems = [
+const studentNavItems = [
   { label: "Dashboard", href: "/dashboard", icon: Home },
-  { label: "Mentorship Requests", href: "/mentorship", icon: Users },
-  { label: "Internship Postings", href: "/internships", icon: Briefcase },
+  { label: "Alumni Hub", href: "/alumni-hub", icon: BookOpen },
+  { label: "Mentorship", href: "/mentorship", icon: User },
+  { label: "Internships", href: "/internships", icon: Briefcase },
   { label: "Events", href: "/events", icon: CalendarDays },
-  { label: "Applications", href: "/applications", icon: ClipboardList },
-  { label: "Contributions", href: "/contributions", icon: HeartHandshake },
+  { label: "My Applications", href: "/applications", icon: ClipboardList },
   { label: "Settings", href: "/settings", icon: Settings },
   { label: "Notifications", href: "/notifications", icon: Bell },
-  { label: "Alumni Profile", href: "/profile", icon: UserRound },
+  { label: "My Profile", href: "/profile", icon: IdCard },
 ];
 
-export default function Sidebar() {
+const adminNavItems = [
+  { label: "Dashboard", href: "/admin/dashboard", icon: Home },
+  { label: "User Management", href: "/admin/users", icon: Users },
+  { label: "Opportunity Management", href: "/admin/opportunities", icon: Briefcase },
+  { label: "Events Management", href: "/admin/events", icon: CalendarDays },
+  { label: "Contributions", href: "/admin/contributions", icon: FileText },
+  { label: "Reports", href: "/admin/reports", icon: ClipboardList },
+  { label: "Notifications", href: "/admin/notifications", icon: Bell },
+  { label: "Settings", href: "/admin/settings", icon: Settings },
+];
+
+export default function Sidebar({ role = "Student" }) {
   const pathname = usePathname();
-  const [notifications] = useStore("notifications");
-  const unread = notifications.filter((n) => !n.isRead).length;
+  const router = useRouter();
+
+  const navItems =
+    role.toLowerCase() === "admin" ||
+    role.toLowerCase() === "administrator"
+      ? adminNavItems
+      : studentNavItems;
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    router.push("/login");
+  };
 
   return (
     <aside className="bg-sidebar text-white w-64 h-screen shrink-0 flex flex-col px-4 py-6">
@@ -40,8 +65,8 @@ export default function Sidebar() {
         <Image
           src="/cst-logo.png"
           alt="CST logo"
-          width={72}
-          height={72}
+          width={96}
+          height={96}
           className="h-24 w-24 shrink-0"
           priority
         />
@@ -54,9 +79,11 @@ export default function Sidebar() {
         </span>
       </div>
 
-      <nav className="flex flex-col gap-1 flex-1 overflow-y-auto">
+      <nav className="flex flex-col gap-1 flex-1">
         {navItems.map(({ label, href, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(href + "/");
+          const active =
+            pathname === href || pathname.startsWith(href + "/");
+
           return (
             <Link
               key={href}
@@ -68,12 +95,7 @@ export default function Sidebar() {
               }`}
             >
               <Icon size={18} />
-              <span className="flex-1">{label}</span>
-              {href === "/notifications" && unread > 0 && (
-                <span className="rounded-full bg-danger px-2 py-0.5 text-[11px] font-semibold text-white">
-                  {unread}
-                </span>
-              )}
+              {label}
             </Link>
           );
         })}
@@ -82,6 +104,7 @@ export default function Sidebar() {
       <div className="mt-4 border-t border-white/15 pt-4">
         <button
           type="button"
+          onClick={logout}
           className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-danger transition-colors hover:bg-white/10"
         >
           <LogOut size={18} />
