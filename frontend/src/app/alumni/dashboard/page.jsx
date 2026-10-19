@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import {
@@ -97,14 +97,14 @@ export default function DashboardPage() {
       <p className="mb-6 text-muted">Here&apos;s what&apos;s happening at CST.</p>
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={UserRound} label="My Profile" value={`${completion}%`} caption="Profile Completed" href="/profile" iconStyle="bg-blue-100 text-primary" />
-        <StatCard icon={Users} label="Mentorship Requests" value={pending} caption="Waiting for your reply" href="/mentorship" iconStyle="bg-purple-100 text-accent" />
-        <StatCard icon={CalendarDays} label="Upcoming Events" value={upcoming.length} caption={`${registrations.length} registered`} href="/events" iconStyle="bg-green-100 text-success" />
-        <StatCard icon={ClipboardList} label="New Applications" value={newApplicants} caption="To review" href="/applications" iconStyle="bg-orange-100 text-warning" />
+        <StatCard icon={UserRound} label="My Profile" value={`${completion}%`} caption="Profile Completed" href="/alumni/profile" iconStyle="bg-blue-100 text-primary" />
+        <StatCard icon={Users} label="Mentorship Requests" value={pending} caption="Waiting for your reply" href="/alumni/mentorship" iconStyle="bg-purple-100 text-accent" />
+        <StatCard icon={CalendarDays} label="Upcoming Events" value={upcoming.length} caption={`${registrations.length} registered`} href="/alumni/events" iconStyle="bg-green-100 text-success" />
+        <StatCard icon={ClipboardList} label="New Applications" value={newApplicants} caption="To review" href="/alumni/applications" iconStyle="bg-orange-100 text-warning" />
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Panel icon={CalendarDays} title="Upcoming Events" href="/events">
+        <Panel icon={CalendarDays} title="Upcoming Events" href="/alumni/events">
           {upcoming.length === 0 ? (
             <EmptyState message="No upcoming events yet." />
           ) : (
@@ -136,7 +136,7 @@ export default function DashboardPage() {
           )}
         </Panel>
 
-        <Panel icon={Briefcase} title="My Internship Postings" href="/internships">
+        <Panel icon={Briefcase} title="My Internship Postings" href="/alumni/internships">
           {openOpps.length === 0 ? (
             <EmptyState message="No open internships. Post one from Internship Postings." />
           ) : (
@@ -163,7 +163,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Panel icon={Megaphone} title="Recent Notifications" href="/notifications">
+        <Panel icon={Megaphone} title="Recent Notifications" href="/alumni/notifications">
           {unread.length === 0 ? (
             <EmptyState message="You're all caught up." />
           ) : (
@@ -181,14 +181,15 @@ export default function DashboardPage() {
 
         <Panel icon={Zap} title="Quick Actions">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <QuickAction icon={UserRound} label="Update Profile" href="/profile" />
-            <QuickAction icon={Heart} label="Add Contribution" href="/contributions" />
-            <QuickAction icon={Briefcase} label="Post Internship" href="/internships" />
-            <QuickAction icon={Users} label="Review Mentorship" href="/mentorship" />
-            <QuickAction icon={CalendarDays} label="Register for Events" href="/events" />
+            <QuickAction icon={UserRound} label="Update Profile" href="/alumni/profile" />
+            <QuickAction icon={Heart} label="Add Contribution" href="/alumni/contributions" />
+            <QuickAction icon={Briefcase} label="Post Internship" href="/alumni/internships" />
+            <QuickAction icon={Users} label="Review Mentorship" href="/alumni/mentorship" />
+            <QuickAction icon={CalendarDays} label="Register for Events" href="/alumni/events" />
           </div>
         </Panel>
       </div>
     </div>
   );
 }
+

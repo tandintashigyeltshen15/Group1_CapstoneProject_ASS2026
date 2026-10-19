@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -278,7 +278,7 @@ function Overview({ profile, setTab }) {
           )}
         </PreviewCard>
 
-        <PreviewCard icon={Heart} title="My Contributions" href="/contributions">
+        <PreviewCard icon={Heart} title="My Contributions" href="/alumni/contributions">
           {contributions.length === 0 ? <EmptyState message="No contributions yet." /> : (
             <ul className="divide-y divide-gray-100">
               {[...contributions].sort((a, b) => b.contributionDate.localeCompare(a.contributionDate)).slice(0, 3).map((c) => (
@@ -429,3 +429,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+

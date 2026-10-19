@@ -8,19 +8,24 @@ import { Search, Bell, ChevronDown } from "lucide-react";
 const initials = (name) =>
   name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
-export default function Topbar() {
+export default function Topbar({ role }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [user, setUser] = useState({ name: "", role: "Student" });
+  const [user, setUser] = useState({ name: "", role: role || "Student" });
   const [unread, setUnread] = useState(0); // later: count from /api/notifications
 
   // The login page will save { name, role } as "user" in localStorage
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem("user"));
-      if (stored) setUser({ name: stored.name || "", role: stored.role || "Student" });
+      if (stored) {
+  setUser({
+    name: stored.name || "",
+    role: role || stored.role || "Student",
+  });
+}
     } catch {}
-  }, []);
+  }, [role]);
 
   const search = (e) => {
     e.preventDefault();
