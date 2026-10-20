@@ -1,4 +1,3 @@
-
 "use client";
 
 import Image from "next/image";
@@ -18,6 +17,7 @@ import {
   Users,
   FileText,
   ShieldCheck,
+  Heart,
 } from "lucide-react";
 
 const studentNavItems = [
@@ -25,6 +25,7 @@ const studentNavItems = [
   { label: "Alumni Hub", href: "/alumni-hub", icon: BookOpen },
   { label: "Mentorship", href: "/mentorship", icon: User },
   { label: "Internships", href: "/internships", icon: Briefcase },
+  { label: "Contributions", href: "/contributions", icon: Heart },
   { label: "Events", href: "/events", icon: CalendarDays },
   { label: "My Applications", href: "/applications", icon: ClipboardList },
   { label: "Settings", href: "/settings", icon: Settings },
