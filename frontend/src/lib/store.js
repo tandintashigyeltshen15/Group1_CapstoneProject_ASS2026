@@ -15,6 +15,51 @@ const listeners = new Set();
 const cache = {};
 
 export const SEEDS = {
+
+    // Staff_Profile + User (Staff role)
+  staffProfile: {
+    name: "Dechen Pelden",
+    email: "dechen.pelden@cst.edu.bt",
+    employeeId: "ST002",
+    phone: "17100002",
+    department: "Alumni Relations",
+    designation: "Alumni Relations Officer",
+  },
+  // Alumni accounts waiting for (or already through) staff verification
+  verificationRequests: [
+    { id: 1, name: "Karma Wangchuk", email: "karma.wangchuk@example.com", graduationYear: 2021, programme: "Civil Engineering", designation: "Site Engineer", document: "degree-certificate-karma.pdf", submittedAt: "2026-10-18", status: "Pending", reason: "" },
+    { id: 2, name: "Tashi Lhamo", email: "tashi.lhamo@example.com", graduationYear: 2019, programme: "Electrical Engineering", designation: "Power Systems Engineer", document: "graduation-letter-tashi.pdf", submittedAt: "2026-10-17", status: "Pending", reason: "" },
+    { id: 3, name: "Jigme Namgyel", email: "jigme.namgyel@example.com", graduationYear: 2023, programme: "Computer Science & Engineering", designation: "Software Developer", document: "transcript-jigme.pdf", submittedAt: "2026-10-14", status: "Pending", reason: "" },
+    { id: 4, name: "Sonam Choki", email: "sonam.choki@example.com", graduationYear: 2018, programme: "Electronics & Communication", designation: "Network Engineer", document: "degree-sonam.pdf", submittedAt: "2026-10-05", status: "Approved", reason: "" },
+    { id: 5, name: "Dorji Wangmo", email: "dorji.wangmo@example.com", graduationYear: 2022, programme: "Civil Engineering", designation: "Surveyor", document: "photo-id.jpg", submittedAt: "2026-10-02", status: "Rejected", reason: "The document does not match the alumni registry. Please upload your graduation certificate." },
+  ],
+  // Alumni_Profile (verified alumni staff can search, view and correct)
+  alumniDirectory: [
+    { id: 1, name: "Test Alumni", email: "test.alumni@example.com", programme: "Software Engineering", graduationYear: 2024, jobTitle: "Developer", company: "ABC Tech", location: "Thimphu", expertise: "Web Development", isMentor: true, bio: "Happy to guide students." },
+    { id: 2, name: "Sonam Choki", email: "sonam.choki@example.com", programme: "Electronics & Communication", graduationYear: 2018, jobTitle: "Network Engineer", company: "Himal Telecom", location: "Thimphu", expertise: "Networking", isMentor: false, bio: "" },
+    { id: 3, name: "Pema Dema", email: "pema.dema@example.com", programme: "Civil Engineering", graduationYear: 2017, jobTitle: "Structural Engineer", company: "Druk Builders", location: "Paro", expertise: "Structural design", isMentor: true, bio: "Glad to talk about site work and design." },
+    { id: 4, name: "Ugyen Dorji", email: "ugyen.dorji@example.com", programme: "Electrical Engineering", graduationYear: 2020, jobTitle: "Electrical Engineer", company: "PowerGrid Bhutan", location: "Phuntsholing", expertise: "Power systems", isMentor: true, bio: "" },
+    { id: 5, name: "Kinley Zangmo", email: "kinley.zangmo@example.com", programme: "Architecture", graduationYear: 2021, jobTitle: "Architect", company: "Studio Dzong", location: "Thimphu", expertise: "Sustainable design", isMentor: false, bio: "" },
+    { id: 6, name: "Tenzin Rabgay", email: "tenzin.rabgay@example.com", programme: "Information Technology", graduationYear: 2022, jobTitle: "Data Analyst", company: "DataBridge", location: "Thimphu", expertise: "Data analysis", isMentor: true, bio: "" },
+  ],
+  // Announcements published by staff (portal content)
+  announcements: [
+    { id: 1, title: "Alumni Homecoming registration is open", message: "Alumni and students can now register for the Homecoming event from the Events page.", audience: "Everyone", createdAt: "2026-10-10T08:00:00" },
+  ],
+  // Notification (for the staff user)
+  staffNotifications: [
+    { id: 1, type: "Verification", message: "3 alumni accounts are waiting for verification.", createdAt: "2026-10-18T09:00:00", isRead: false },
+    { id: 2, type: "Application", message: "Sonam Pelden applied to Web Development Intern.", createdAt: "2026-10-15T09:05:00", isRead: false },
+    { id: 3, type: "Event", message: "Alumni Homecoming is scheduled for 21 Nov 2026.", createdAt: "2026-10-10T08:00:00", isRead: true },
+  ],
+  // Settings (staff preferences)
+  staffSettings: {
+    emailNotifications: true,
+    verificationAlerts: true,
+    applicationAlerts: true,
+    eventReminders: true,
+  },
+
   // Alumni_Profile + User
   profile: {
     name: "Sonam Dorji",
@@ -125,6 +170,13 @@ export function nextId(list) {
 
 export function addNotification(type, message) {
   update("notifications", (list) => [
+    { id: nextId(list), type, message, createdAt: new Date().toISOString(), isRead: false },
+    ...list,
+  ]);
+}
+
+export function addStaffNotification(type, message) {
+  update("staffNotifications", (list) => [
     { id: nextId(list), type, message, createdAt: new Date().toISOString(), isRead: false },
     ...list,
   ]);

@@ -18,6 +18,8 @@ import {
   FileText,
   ShieldCheck,
   Heart,
+  Megaphone,
+  BarChart3,
 } from "lucide-react";
 
 const studentNavItems = [
@@ -44,14 +46,29 @@ const adminNavItems = [
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
+const staffNavItems = [
+  { label: "Dashboard", href: "/staff/dashboard", icon: Home },
+  { label: "Alumni Verification", href: "/staff/verification", icon: ShieldCheck },
+  { label: "Alumni Directory", href: "/staff/alumni", icon: BookOpen },
+  { label: "Opportunities", href: "/staff/opportunities", icon: Briefcase },
+  { label: "Events", href: "/staff/events", icon: CalendarDays },
+  { label: "Announcements", href: "/staff/announcements", icon: Megaphone },
+  { label: "Reports", href: "/staff/reports", icon: BarChart3 },
+  { label: "Settings", href: "/staff/settings", icon: Settings },
+  { label: "Notifications", href: "/staff/notifications", icon: Bell },
+  { label: "My Profile", href: "/staff/profile", icon: IdCard },
+];
+
 export default function Sidebar({ role = "Student" }) {
   const pathname = usePathname();
   const router = useRouter();
 
+  const roleKey = role.toLowerCase();
   const navItems =
-    role.toLowerCase() === "admin" ||
-    role.toLowerCase() === "administrator"
+    roleKey === "admin" || roleKey === "administrator"
       ? adminNavItems
+      : roleKey === "staff"
+      ? staffNavItems
       : studentNavItems;
 
   const logout = () => {
