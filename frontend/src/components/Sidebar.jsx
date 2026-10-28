@@ -20,7 +20,10 @@ import {
   Heart,
   Megaphone,
   BarChart3,
+<<<<<<< HEAD
   HandHeart,
+=======
+>>>>>>> a3fa24ff22153ace9c9c6d16eb1f7b593c3d54d5
 } from "lucide-react";
 
 const studentNavItems = [
@@ -41,7 +44,11 @@ const adminNavItems = [
   { label: "User Management", href: "/admin/users", icon: Users },
   { label: "Opportunity Management", href: "/admin/opportunities", icon: Briefcase },
   { label: "Events Management", href: "/admin/events", icon: CalendarDays },
+<<<<<<< HEAD
   { label: "Contributions", href: "/admin/contributions", icon: HandHeart },
+=======
+  { label: "Contributions", href: "/admin/contributions", icon: FileText },
+>>>>>>> a3fa24ff22153ace9c9c6d16eb1f7b593c3d54d5
   { label: "Reports", href: "/admin/reports", icon: ClipboardList },
   { label: "Notifications", href: "/admin/notifications", icon: Bell },
   { label: "Settings", href: "/admin/settings", icon: Settings },

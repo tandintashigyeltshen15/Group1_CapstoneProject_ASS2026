@@ -8,11 +8,19 @@ import { Search, Bell, ChevronDown } from "lucide-react";
 const initials = (name) =>
   name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
+<<<<<<< HEAD
 export default function Topbar({ role, notificationsHref = "/notifications", searchHref = "/alumni-hub/directory", showSearch = true, searchPlaceholder = "Search alumni by name, skills, company...", unreadCount = 0, fallbackName = "" }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [user, setUser] = useState({ name: fallbackName, role: role || "Student" });
   const unread = unreadCount; // pass the count from the layout (later: /api/notifications)
+=======
+export default function Topbar({ role, notificationsHref = "/notifications", searchHref = "/alumni-hub/directory", showSearch = true }) {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+  const [user, setUser] = useState({ name: "", role: role || "Student" });
+  const [unread, setUnread] = useState(0); // later: count from /api/notifications
+>>>>>>> a3fa24ff22153ace9c9c6d16eb1f7b593c3d54d5
 
   // The login page will save { name, role } as "user" in localStorage
   useEffect(() => {
@@ -20,12 +28,20 @@ export default function Topbar({ role, notificationsHref = "/notifications", sea
       const stored = JSON.parse(localStorage.getItem("user"));
       if (stored) {
   setUser({
+<<<<<<< HEAD
     name: stored.name || fallbackName,
+=======
+    name: stored.name || "",
+>>>>>>> a3fa24ff22153ace9c9c6d16eb1f7b593c3d54d5
     role: role || stored.role || "Student",
   });
 }
     } catch {}
+<<<<<<< HEAD
   }, [role, fallbackName]);
+=======
+  }, [role]);
+>>>>>>> a3fa24ff22153ace9c9c6d16eb1f7b593c3d54d5
 
   const search = (e) => {
     e.preventDefault();
@@ -42,7 +58,11 @@ export default function Topbar({ role, notificationsHref = "/notifications", sea
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+<<<<<<< HEAD
           placeholder={searchPlaceholder}
+=======
+          placeholder="Search alumni by name, skills, company..."
+>>>>>>> a3fa24ff22153ace9c9c6d16eb1f7b593c3d54d5
           className="w-full rounded-lg bg-gray-100 py-2.5 pl-9 pr-3 text-sm text-text outline-none focus:ring-2 focus:ring-primary/30"
         />
       </form>
