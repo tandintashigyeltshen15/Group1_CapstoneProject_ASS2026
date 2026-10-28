@@ -1,0 +1,249 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model alumni {
+  AlumniID               Int                  @id @default(autoincrement()) @db.UnsignedInt
+  UserID                 Int                  @unique(map: "UserID") @db.UnsignedInt
+  ProgrammeID            Int                  @db.UnsignedInt
+  GraduationYear         Int
+  ProfessionalBackground String?              @db.Text
+  ExpertiseArea          String?              @db.VarChar(255)
+  MentorshipAvailable    Boolean              @default(false)
+  IsProfilePublic        Boolean              @default(true)
+  programme              programme            @relation(fields: [ProgrammeID], references: [ProgrammeID], map: "fk_alumni_programme")
+  user                   user                 @relation(fields: [UserID], references: [UserID], onDelete: Cascade, map: "fk_alumni_user")
+  career_history         career_history[]
+  contribution           contribution[]
+  mentorship_request     mentorship_request[]
+  project                project[]
+  publication            publication[]
+
+  @@index([ProgrammeID], map: "fk_alumni_programme")
+  @@index([GraduationYear, ProgrammeID], map: "idx_alumni_grad_programme")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model application {
+  ApplicationID     Int         @id @default(autoincrement()) @db.UnsignedInt
+  StudentID         String      @db.VarChar(20)
+  OpportunityID     Int         @db.UnsignedInt
+  SubmissionDate    DateTime    @default(now()) @db.DateTime(0)
+  ApplicationStatus String      @default("Under Review") @db.VarChar(20)
+  opportunity       opportunity @relation(fields: [OpportunityID], references: [OpportunityID], map: "fk_application_opportunity")
+  student           student     @relation(fields: [StudentID], references: [StudentID], map: "fk_application_student")
+
+  @@unique([StudentID, OpportunityID], map: "uq_application_student_opportunity")
+  @@index([OpportunityID, ApplicationStatus], map: "idx_application_opp_status")
+  @@index([StudentID, SubmissionDate], map: "idx_application_student_date")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model career_history {
+  CareerID     Int       @id @default(autoincrement()) @db.UnsignedInt
+  AlumniID     Int       @db.UnsignedInt
+  Organization String    @db.VarChar(100)
+  Position     String    @db.VarChar(30)
+  StartDate    DateTime  @db.Date
+  EndDate      DateTime? @db.Date
+  alumni       alumni    @relation(fields: [AlumniID], references: [AlumniID], onDelete: Cascade, map: "fk_career_alumni")
+
+  @@index([AlumniID], map: "idx_career_alumni")
+}
+
+model contribution {
+  ContributionID   Int       @id @default(autoincrement()) @db.UnsignedInt
+  AlumniID         Int       @db.UnsignedInt
+  CategoryType     String    @db.VarChar(50)
+  Description      String    @db.Text
+  ContributionDate DateTime? @db.Date
+  alumni           alumni    @relation(fields: [AlumniID], references: [AlumniID], onDelete: Cascade, map: "fk_contribution_alumni")
+
+  @@index([AlumniID], map: "fk_contribution_alumni")
+}
+
+model department {
+  DepartmentID   Int         @id @default(autoincrement()) @db.UnsignedInt
+  DepartmentName String      @unique(map: "DepartmentName") @db.VarChar(50)
+  HOD            String?     @db.VarChar(50)
+  programme      programme[]
+  staff          staff[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model event {
+  EventID            Int                  @id @default(autoincrement()) @db.UnsignedInt
+  CreatorID          Int                  @db.UnsignedInt
+  Title              String               @db.VarChar(200)
+  Description        String?              @db.Text
+  DateTime           DateTime             @db.DateTime(0)
+  Duration           String?              @db.VarChar(50)
+  Venue              String?              @db.VarChar(200)
+  Status             String               @default("Published") @db.VarChar(20)
+  user               user                 @relation(fields: [CreatorID], references: [UserID], map: "fk_event_creator")
+  event_registration event_registration[]
+
+  @@index([CreatorID], map: "fk_event_creator")
+}
+
+model event_registration {
+  RegistrationID   Int      @id @default(autoincrement()) @db.UnsignedInt
+  UserID           Int      @db.UnsignedInt
+  EventID          Int      @db.UnsignedInt
+  RegistrationDate DateTime @default(now()) @db.DateTime(0)
+  event            event    @relation(fields: [EventID], references: [EventID], onDelete: Cascade, map: "fk_eventreg_event")
+  user             user     @relation(fields: [UserID], references: [UserID], onDelete: Cascade, map: "fk_eventreg_user")
+
+  @@unique([UserID, EventID], map: "uq_eventreg_user_event")
+  @@index([EventID], map: "fk_eventreg_event")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model mentorship_request {
+  RequestID      Int      @id @default(autoincrement()) @db.UnsignedInt
+  StudentID      String   @db.VarChar(20)
+  AlumniID       Int      @db.UnsignedInt
+  RequestSubject String   @db.VarChar(50)
+  RequestDetail  String   @db.Text
+  Duration       String?  @db.VarChar(50)
+  RequestDate    DateTime @default(now()) @db.DateTime(0)
+  Status         String   @default("Pending") @db.VarChar(20)
+  alumni         alumni   @relation(fields: [AlumniID], references: [AlumniID], map: "fk_mentorship_alumni")
+  student        student  @relation(fields: [StudentID], references: [StudentID], map: "fk_mentorship_student")
+
+  @@index([StudentID], map: "fk_mentorship_student")
+  @@index([AlumniID, Status], map: "idx_mentorship_alumni_status")
+}
+
+model notification {
+  NotificationID   Int      @id @default(autoincrement()) @db.UnsignedInt
+  UserID           Int      @db.UnsignedInt
+  NotificationType String   @db.VarChar(50)
+  Message          String   @db.VarChar(200)
+  CreatedAt        DateTime @default(now()) @db.DateTime(0)
+  IsRead           Boolean  @default(false)
+  user             user     @relation(fields: [UserID], references: [UserID], onDelete: Cascade, map: "fk_notification_user")
+
+  @@index([UserID, IsRead, CreatedAt], map: "idx_notification_user_read")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model opportunity {
+  OpportunityID           Int           @id @default(autoincrement()) @db.UnsignedInt
+  CreatorID               Int           @db.UnsignedInt
+  Title                   String        @db.VarChar(150)
+  Organization            String        @db.VarChar(100)
+  OpportunityType         String        @db.VarChar(30)
+  Description             String        @db.Text
+  Deadline                DateTime?     @db.DateTime(0)
+  StartDate               DateTime?     @db.Date
+  Duration                String?       @db.VarChar(50)
+  EligibilityRequirements String?       @db.Text
+  Status                  String        @default("Open") @db.VarChar(20)
+  application             application[]
+  user                    user          @relation(fields: [CreatorID], references: [UserID], map: "fk_opportunity_creator")
+
+  @@index([CreatorID], map: "fk_opportunity_creator")
+}
+
+model programme {
+  ProgrammeID   Int        @id @default(autoincrement()) @db.UnsignedInt
+  ProgrammeName String     @db.VarChar(100)
+  DepartmentID  Int        @db.UnsignedInt
+  alumni        alumni[]
+  department    department @relation(fields: [DepartmentID], references: [DepartmentID], map: "fk_programme_department")
+  student       student[]
+
+  @@index([DepartmentID], map: "fk_programme_department")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model project {
+  ProjectID     Int       @id @default(autoincrement()) @db.UnsignedInt
+  AlumniID      Int       @db.UnsignedInt
+  Title         String    @db.VarChar(100)
+  Description   String?   @db.Text
+  StartDate     DateTime? @db.Date
+  EndDate       DateTime? @db.Date
+  FundingAgency String?   @db.VarChar(150)
+  alumni        alumni    @relation(fields: [AlumniID], references: [AlumniID], onDelete: Cascade, map: "fk_project_alumni")
+
+  @@index([AlumniID], map: "idx_project_alumni")
+}
+
+model publication {
+  PublicationID   Int       @id @default(autoincrement()) @db.UnsignedInt
+  AlumniID        Int       @db.UnsignedInt
+  Title           String    @db.VarChar(100)
+  PublicationType String    @db.VarChar(50)
+  PublicationDate DateTime? @db.Date
+  alumni          alumni    @relation(fields: [AlumniID], references: [AlumniID], onDelete: Cascade, map: "fk_publication_alumni")
+
+  @@index([AlumniID], map: "idx_publication_alumni")
+}
+
+model role {
+  RoleID   Int    @id @default(autoincrement()) @db.UnsignedInt
+  RoleName String @unique(map: "RoleName") @db.VarChar(30)
+  user     user[]
+}
+
+model staff {
+  StaffID         String     @id @db.VarChar(10)
+  UserID          Int        @unique(map: "UserID") @db.UnsignedInt
+  PhoneNo         String?    @unique(map: "PhoneNo") @db.VarChar(8)
+  DepartmentID    Int        @db.UnsignedInt
+  Qualifications  String?    @db.VarChar(100)
+  Designation     String?    @db.VarChar(100)
+  AreaOfExpertise String?    @db.Text
+  department      department @relation(fields: [DepartmentID], references: [DepartmentID], map: "fk_staff_department")
+  user            user       @relation(fields: [UserID], references: [UserID], onDelete: Cascade, map: "fk_staff_user")
+
+  @@index([DepartmentID], map: "fk_staff_department")
+}
+
+model student {
+  StudentID          String               @id @db.VarChar(20)
+  UserID             Int                  @unique(map: "UserID") @db.UnsignedInt
+  ProgrammeID        Int                  @db.UnsignedInt
+  JoinYear           Int                  @db.Year
+  PhoneNo            String?              @unique(map: "PhoneNo") @db.VarChar(8)
+  Dzongkhag          String?              @db.VarChar(20)
+  Gewog              String?              @db.VarChar(20)
+  Projects           String?              @db.Text
+  TechnicalSkills    String?              @db.Text
+  SoftSkills         String?              @db.Text
+  application        application[]
+  mentorship_request mentorship_request[]
+  programme          programme            @relation(fields: [ProgrammeID], references: [ProgrammeID], map: "fk_student_programme")
+  user               user                 @relation(fields: [UserID], references: [UserID], onDelete: Cascade, map: "fk_student_user")
+
+  @@index([ProgrammeID], map: "fk_student_programme")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model user {
+  UserID             Int                  @id @default(autoincrement()) @db.UnsignedInt
+  RoleID             Int                  @db.UnsignedInt
+  Username           String               @unique(map: "Username") @db.VarChar(50)
+  Password           String               @db.VarChar(255)
+  Name               String               @db.VarChar(50)
+  Email              String               @unique(map: "Email") @db.VarChar(254)
+  AccountStatus      String               @default("Pending") @db.VarChar(20)
+  CreatedAt          DateTime?            @default(now()) @db.DateTime(0)
+  alumni             alumni?
+  event              event[]
+  event_registration event_registration[]
+  notification       notification[]
+  opportunity        opportunity[]
+  staff              staff?
+  student            student?
+  role               role                 @relation(fields: [RoleID], references: [RoleID], map: "fk_user_role")
+
+  @@index([RoleID], map: "fk_user_role")
+}
