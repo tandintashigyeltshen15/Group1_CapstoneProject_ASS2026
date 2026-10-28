@@ -9,12 +9,16 @@
    addNotification(...)    -> adds a row for the Notification table
 ------------------------------------------------------------------- */
 import { useCallback, useSyncExternalStore } from "react";
+import { ADMIN_SEEDS } from "./adminData";
 
 const PREFIX = "cst-portal:";
 const listeners = new Set();
 const cache = {};
 
 export const SEEDS = {
+
+  // Admin pages (see adminData.js)
+  ...ADMIN_SEEDS,
 
     // Staff_Profile + User (Staff role)
   staffProfile: {

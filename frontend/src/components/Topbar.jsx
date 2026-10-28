@@ -8,24 +8,32 @@ import { Search, Bell, ChevronDown } from "lucide-react";
 const initials = (name) =>
   name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
-export default function Topbar({ role, notificationsHref = "/notifications", searchHref = "/alumni-hub/directory", showSearch = true }) {
+export default function Topbar({
+  role,
+  notificationsHref = "/notifications",
+  searchHref = "/alumni-hub/directory",
+  showSearch = true,
+  searchPlaceholder = "Search alumni by name, skills, company...",
+  unreadCount = 0,
+  fallbackName = "",
+}) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [user, setUser] = useState({ name: "", role: role || "Student" });
-  const [unread, setUnread] = useState(0); // later: count from /api/notifications
+  const [user, setUser] = useState({ name: fallbackName, role: role || "Student" });
+  const unread = unreadCount; // pass the count from the layout (later: /api/notifications)
 
   // The login page will save { name, role } as "user" in localStorage
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem("user"));
       if (stored) {
-  setUser({
-    name: stored.name || "",
-    role: role || stored.role || "Student",
-  });
-}
+        setUser({
+          name: stored.name || fallbackName,
+          role: role || stored.role || "Student",
+        });
+      }
     } catch {}
-  }, [role]);
+  }, [role, fallbackName]);
 
   const search = (e) => {
     e.preventDefault();
@@ -37,15 +45,15 @@ export default function Topbar({ role, notificationsHref = "/notifications", sea
   return (
     <header className="flex h-16 items-center gap-4 border-b border-gray-200 bg-white px-8">
       {showSearch && (
-      <form onSubmit={search} className="relative max-w-xl flex-1">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search alumni by name, skills, company..."
-          className="w-full rounded-lg bg-gray-100 py-2.5 pl-9 pr-3 text-sm text-text outline-none focus:ring-2 focus:ring-primary/30"
-        />
-      </form>
+        <form onSubmit={search} className="relative max-w-xl flex-1">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={searchPlaceholder}
+            className="w-full rounded-lg bg-gray-100 py-2.5 pl-9 pr-3 text-sm text-text outline-none focus:ring-2 focus:ring-primary/30"
+          />
+        </form>
       )}
 
       <div className="ml-auto flex items-center gap-5">

@@ -15,11 +15,11 @@ import {
   IdCard,
   LogOut,
   Users,
-  FileText,
   ShieldCheck,
   Heart,
   Megaphone,
   BarChart3,
+  HandHeart,
 } from "lucide-react";
 
 const studentNavItems = [
@@ -40,7 +40,7 @@ const adminNavItems = [
   { label: "User Management", href: "/admin/users", icon: Users },
   { label: "Opportunity Management", href: "/admin/opportunities", icon: Briefcase },
   { label: "Events Management", href: "/admin/events", icon: CalendarDays },
-  { label: "Contributions", href: "/admin/contributions", icon: FileText },
+  { label: "Contributions", href: "/admin/contributions", icon: HandHeart },
   { label: "Reports", href: "/admin/reports", icon: ClipboardList },
   { label: "Notifications", href: "/admin/notifications", icon: Bell },
   { label: "Settings", href: "/admin/settings", icon: Settings },
