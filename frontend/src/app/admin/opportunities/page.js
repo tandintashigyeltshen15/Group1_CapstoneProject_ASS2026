@@ -6,7 +6,7 @@ import { PageHeader, Card, Badge, EmptyState, Notice, Field, inputCls, btnPrimar
 import { useStore, update, nextId, formatDate } from "@/lib/store";
 import { Modal, Tabs, Table, statusTone, btnSm, btnSmDanger, btnSmSuccess } from "@/components/AdminUI";
 
-const EMPTY = { title: "", type: "Job", company: "", location: "", deadline: "", description: "" };
+const EMPTY = { title: "", type: "Internship", company: "", location: "", deadline: "", description: "" };
 
 export default function AdminOpportunitiesPage() {
   const [items] = useStore("adminOpportunities");
@@ -15,7 +15,8 @@ export default function AdminOpportunitiesPage() {
   const [form, setForm] = useState(null);
   const [flash, setFlash] = useState(null);
 
-  const byStatus = items.filter((o) => status === "all" || o.status === status);
+  const internshipItems = items.filter((o) => o.type === "Internship");
+  const byStatus = internshipItems.filter((o) => status === "all" || o.status === status);
   const shown = byStatus.filter((o) => type === "all" || o.type === type);
 
   const setStatusOf = (o, next, text) => {
@@ -45,7 +46,7 @@ export default function AdminOpportunitiesPage() {
     <div>
       <PageHeader
         title="Opportunity Management"
-        subtitle="Approve jobs and internships posted by alumni, or post your own."
+        subtitle="Approve internships posted by alumni, or post your own."
         action={<button type="button" className={btnPrimary} onClick={() => setForm(EMPTY)}><Plus size={16} /> Post Opportunity</button>}
       />
       {flash && <Notice tone={flash.tone}>{flash.text}</Notice>}
@@ -56,7 +57,6 @@ export default function AdminOpportunitiesPage() {
           onChange={setType}
           tabs={[
             { key: "all", label: "All", count: byStatus.length },
-            { key: "Job", label: "Jobs", count: byStatus.filter((o) => o.type === "Job").length },
             { key: "Internship", label: "Internships", count: byStatus.filter((o) => o.type === "Internship").length },
           ]}
         />
@@ -126,7 +126,6 @@ export default function AdminOpportunitiesPage() {
             <div className="grid grid-cols-2 gap-4">
               <Field label="Type">
                 <select className={inputCls} value={form.type} onChange={set("type")}>
-                  <option>Job</option>
                   <option>Internship</option>
                 </select>
               </Field>

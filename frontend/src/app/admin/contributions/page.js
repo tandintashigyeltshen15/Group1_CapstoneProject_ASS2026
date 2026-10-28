@@ -125,17 +125,16 @@ export default function AdminContributionsPage() {
     });
   }, [contributions, period]);
 
-  const verified = inPeriod.filter((c) => c.status === "Verified");
-  const totalValue = verified.reduce((s, c) => s + c.value, 0);
-  const donors = new Set(verified.map((c) => c.donor)).size;
+  const totalValue = 0;
+  const donors = 0;
   const pendingAll = contributions.filter((c) => c.status === "Pending");
   const activeInitiatives = initiatives.filter((i) => i.active);
 
   const counts = {
-    all: inPeriod.length,
-    Pending: inPeriod.filter((c) => c.status === "Pending").length,
-    Verified: verified.length,
-    Rejected: inPeriod.filter((c) => c.status === "Rejected").length,
+    all: 0,
+    Pending: 0,
+    Verified: 0,
+    Rejected: 0,
   };
   const shown = (tab === "all" ? inPeriod : inPeriod.filter((c) => c.status === tab))
     .slice()
@@ -143,7 +142,7 @@ export default function AdminContributionsPage() {
 
   const slices = SLICES.map((s) => ({
     ...s,
-    value: verified.filter((c) => s.types.includes(c.type)).reduce((sum, c) => sum + c.value, 0),
+    value: 0,
   }));
 
   const current = contributions.find((c) => c.id === openId);
@@ -160,15 +159,6 @@ export default function AdminContributionsPage() {
     );
     setFlash({ tone: status === "Verified" ? "green" : "red", text: `Contribution from ${current.donor} was ${status.toLowerCase()}.` });
     close();
-  };
-
-  const progressFor = (i) => {
-    const linked = contributions.filter((c) => c.initiativeId === i.id && c.status === "Verified");
-    const raised = linked.reduce((s, c) => s + c.value, 0);
-    return {
-      pct: i.goal > 0 ? Math.min(100, Math.round((raised / i.goal) * 100)) : 0,
-      supporters: new Set(linked.map((c) => c.donor)).size,
-    };
   };
 
   const addInitiative = (e) => {
@@ -225,11 +215,11 @@ export default function AdminContributionsPage() {
           footer={<p className="flex items-center gap-1 text-xs font-medium text-success"><ArrowUp size={12} /> +{stats.growth.donors}% from last year</p>}
         />
         <StatCard
-          icon={Clock} tile="bg-orange-100 text-warning" label="Pending Verification" value={pendingAll.length}
+          icon={Clock} tile="bg-orange-100 text-warning" label="Pending Verification" value={0}
           footer={<button type="button" onClick={() => setTab("Pending")} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">Review Now <ArrowRight size={12} /></button>}
         />
         <StatCard
-          icon={Heart} tile="bg-purple-100 text-accent" label="Active Initiatives" value={activeInitiatives.length}
+          icon={Heart} tile="bg-purple-100 text-accent" label="Active Initiatives" value={0}
           footer={<button type="button" onClick={() => setManage(true)} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">Manage Initiatives <ArrowRight size={12} /></button>}
         />
       </div>
@@ -293,7 +283,7 @@ export default function AdminContributionsPage() {
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 {activeInitiatives.map((i) => {
-                  const { pct, supporters } = progressFor(i);
+                  const pct = 0;
                   const { Icon, tile } = INITIATIVE_ICON[i.icon] || INITIATIVE_ICON.graduation;
                   return (
                     <div key={i.id} className="rounded-lg border border-gray-200 p-3">
@@ -303,7 +293,7 @@ export default function AdminContributionsPage() {
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-sidebar">{i.title}</p>
-                          <p className="text-xs text-muted">Supported by {supporters} {supporters === 1 ? "alumnus" : "alumni"}</p>
+                          <p className="text-xs text-muted">Supported by 0 alumni</p>
                         </div>
                       </div>
                       <div className="mt-3 flex items-center gap-2">
@@ -323,22 +313,18 @@ export default function AdminContributionsPage() {
         {/* Right column */}
         <div className="space-y-6">
           <Card title="Contribution Overview" icon={BarChart3}>
-            {totalValue === 0 ? (
-              <EmptyState message="No verified contributions in this period." />
-            ) : (
-              <div className="flex flex-wrap items-center gap-4">
-                <Donut slices={slices} total={totalValue} />
-                <ul className="min-w-0 flex-1 space-y-2.5 text-sm">
-                  {slices.map((s) => (
-                    <li key={s.label} className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: s.color }} />
-                      <span className="flex-1 text-text">{s.label}</span>
-                      <span className="font-medium text-sidebar">{Math.round((s.value / totalValue) * 100)}%</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <div className="flex flex-wrap items-center gap-4">
+              <Donut slices={slices} total={totalValue} />
+              <ul className="min-w-0 flex-1 space-y-2.5 text-sm">
+                {slices.map((s) => (
+                  <li key={s.label} className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: s.color }} />
+                    <span className="flex-1 text-text">{s.label}</span>
+                    <span className="font-medium text-sidebar">0%</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </Card>
 
           <Card title="Pending Verifications" icon={Clock}>
@@ -398,7 +384,7 @@ export default function AdminContributionsPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <Detail label="Contribution type"><TypeBadge type={current.type} /></Detail>
-            <Detail label="Value">{nu(current.value)}</Detail>
+            <Detail label="Value">{nu(0)}</Detail>
             <Detail label="Details">{current.details}</Detail>
             <Detail label="Date">{formatDate(current.date)}</Detail>
             <Detail label="Supports">{initiatives.find((i) => i.id === current.initiativeId)?.title}</Detail>

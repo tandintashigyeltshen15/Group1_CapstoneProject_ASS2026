@@ -36,10 +36,11 @@ function Kpi({ label, value, growth, href }) {
 function LineChart({ labels, series }) {
   const [hover, setHover] = useState(null);
   const W = 640, H = 240, L = 36, R = 28, T = 12, B = 30;
-  const max = Math.ceil(Math.max(...series.flatMap((s) => s.values)) / 20) * 20;
+  const dataMax = Math.max(...series.flatMap((s) => s.values), 0);
+  const max = dataMax === 0 ? 1 : Math.ceil(dataMax / 20) * 20;
   const x = (i) => L + (i * (W - L - R)) / (labels.length - 1);
   const y = (v) => T + (1 - v / max) * (H - T - B);
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((t) => Math.round(max * t));
+  const ticks = dataMax === 0 ? [0] : [0, 0.25, 0.5, 0.75, 1].map((t) => Math.round(max * t));
   const step = (W - L - R) / (labels.length - 1);
 
   return (
@@ -117,24 +118,14 @@ function QuickStat({ icon: Icon, label, value, href }) {
 }
 
 export default function AdminDashboardPage() {
-  const [stats] = useStore("adminStats");
   const [analytics] = useStore("adminAnalytics");
   const [contributions] = useStore("adminContributions");
-  const [users] = useStore("adminUsers");
-  const [opportunities] = useStore("adminOpportunities");
   const [events] = useStore("adminEvents");
-  const [notifications] = useStore("adminNotifications");
 
-  const totalContributed = contributions
-    .filter((c) => c.status === "Verified")
-    .reduce((sum, c) => sum + c.value, 0);
-  const internshipsPosted = opportunities.filter((o) => o.type === "Internship").length;
-
-  const pendingAlumni = users.filter((u) => u.role === "Alumni" && u.status === "Pending").length;
-  const pendingContributions = contributions.filter((c) => c.status === "Pending").length;
-  const pendingOpps = opportunities.filter((o) => o.status === "Pending").length;
-  const pendingEvents = events.filter((e) => e.status === "Pending").length;
-  const unread = notifications.filter((n) => !n.isRead).length;
+  const zeroSeries = analytics.series.map((series) => ({
+    ...series,
+    values: series.values.map(() => 0),
+  }));
 
   const recent = [...contributions].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
   const upcoming = events
@@ -148,17 +139,17 @@ export default function AdminDashboardPage() {
       <p className="mb-6 text-muted">Welcome back! Here&apos;s what&apos;s happening on the CST Alumni Portal.</p>
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <Kpi label="Total Alumni" value={stats.totalAlumni.toLocaleString("en-US")} growth={stats.growth.alumni} href="/admin/users" />
-        <Kpi label="Active Mentors" value={stats.activeMentors} growth={stats.growth.mentors} href="/admin/users" />
-        <Kpi label="Total Contributions" value={nu(totalContributed)} growth={stats.growth.contributions} href="/admin/contributions" />
-        <Kpi label="Internships Posted" value={internshipsPosted} growth={stats.growth.internships} href="/admin/opportunities" />
-        <Kpi label="Events Created" value={events.length} growth={stats.growth.events} href="/admin/events" />
+        <Kpi label="Total Alumni" value={0} growth={0} href="/admin/users" />
+        <Kpi label="Active Mentors" value={0} growth={0} href="/admin/users" />
+        <Kpi label="Total Contributions" value={nu(0)} growth={0} href="/admin/contributions" />
+        <Kpi label="Internships Posted" value={0} growth={0} href="/admin/opportunities" />
+        <Kpi label="Events Created" value={0} growth={0} href="/admin/events" />
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-6">
           <Card title="Overview Analytics" action={<span className="text-xs text-muted">Last 7 Days</span>}>
-            <LineChart labels={analytics.labels} series={analytics.series} />
+            <LineChart labels={analytics.labels} series={zeroSeries} />
           </Card>
 
           <Card title="Recent Contributions" action={<ViewAll href="/admin/contributions" />}>
@@ -188,12 +179,12 @@ export default function AdminDashboardPage() {
         <div className="space-y-6">
           <Card title="Quick Stats">
             <div className="divide-y divide-gray-100">
-              <QuickStat icon={UserCheck} label="Pending Alumni Approvals" value={pendingAlumni} href="/admin/users" />
-              <QuickStat icon={HandHeart} label="Pending Contribution Verifications" value={pendingContributions} href="/admin/contributions" />
-              <QuickStat icon={Briefcase} label="Pending Opportunity Approvals" value={pendingOpps} href="/admin/opportunities" />
-              <QuickStat icon={CalendarDays} label="Pending Event Approvals" value={pendingEvents} href="/admin/events" />
-              <QuickStat icon={Bell} label="Unread Notifications" value={unread} href="/admin/notifications" />
-              <QuickStat icon={Flag} label="Reported Content" value={stats.reportedContent} href="/admin/reports" />
+              <QuickStat icon={UserCheck} label="Pending Alumni Approvals" value={0} href="/admin/users" />
+              <QuickStat icon={HandHeart} label="Pending Contribution Verifications" value={0} href="/admin/contributions" />
+              <QuickStat icon={Briefcase} label="Pending Opportunity Approvals" value={0} href="/admin/opportunities" />
+              <QuickStat icon={CalendarDays} label="Pending Event Approvals" value={0} href="/admin/events" />
+              <QuickStat icon={Bell} label="Unread Notifications" value={0} href="/admin/notifications" />
+              <QuickStat icon={Flag} label="Reported Content" value={0} href="/admin/reports" />
             </div>
           </Card>
 

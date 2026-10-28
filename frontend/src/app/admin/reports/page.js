@@ -51,7 +51,6 @@ export default function AdminReportsPage() {
     opportunities.filter((o) => o.status === "Pending").length +
     events.filter((e) => e.status === "Pending").length;
   const upcoming = events.filter((e) => e.status === "Approved" && new Date(e.dateTime) >= new Date()).length;
-
   const types = ["Financial Support", "Equipment & Resources", "Scholarship", "Infrastructure", "Other"];
 
   return (
@@ -61,7 +60,7 @@ export default function AdminReportsPage() {
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <Tile label="Registered users" value={users.length} caption="Accounts in the portal" href="/admin/users" />
         <Tile label="Verified contributions" value={nu(verifiedValue)} caption={`${verified.length} verified contributions`} href="/admin/contributions" />
-        <Tile label="Open opportunities" value={opportunities.filter((o) => o.status === "Approved").length} caption="Approved jobs and internships" href="/admin/opportunities" />
+        <Tile label="Open opportunities" value={opportunities.filter((o) => o.status === "Approved" && o.type === "Internship").length} caption="Approved internships" href="/admin/opportunities" />
         <Tile label="Upcoming events" value={upcoming} caption="Approved and still to happen" href="/admin/events" />
         <Tile label="Waiting for approval" value={pendingTotal} caption="Users, contributions, postings and events" href="/admin/dashboard" />
         <Tile label="Reported content" value={stats.reportedContent} caption="Flagged by portal users" href="/admin/notifications" />
@@ -70,19 +69,19 @@ export default function AdminReportsPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card title="Verified contributions by type">
           <Breakdown
-            rows={types.map((t) => [t, verified.filter((c) => c.type === t).reduce((s, c) => s + c.value, 0)])}
+            rows={types.map((type) => [type, verified.filter((c) => c.type === type).reduce((s, c) => s + c.value, 0)])}
             format={nu}
             color="bg-success"
           />
         </Card>
         <Card title="Users by role">
-          <Breakdown rows={["Student", "Alumni", "Staff", "Administrator"].map((r) => [r, users.filter((u) => u.role === r).length])} />
+          <Breakdown rows={["Student", "Alumni", "Staff", "Administrator"].map((role) => [role, users.filter((u) => u.role === role).length])} />
         </Card>
         <Card title="Opportunities by status">
-          <Breakdown rows={["Approved", "Pending", "Rejected", "Closed"].map((s) => [s, opportunities.filter((o) => o.status === s).length])} color="bg-accent" />
+          <Breakdown rows={["Approved", "Pending", "Rejected", "Closed"].map((status) => [status, opportunities.filter((o) => o.status === status && o.type === "Internship").length])} color="bg-accent" />
         </Card>
         <Card title="Events by status">
-          <Breakdown rows={["Approved", "Pending", "Rejected", "Cancelled"].map((s) => [s, events.filter((e) => e.status === s).length])} color="bg-warning" />
+          <Breakdown rows={["Approved", "Pending", "Rejected", "Cancelled"].map((status) => [status, events.filter((e) => e.status === status).length])} color="bg-warning" />
         </Card>
       </div>
     </div>

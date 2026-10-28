@@ -83,6 +83,16 @@ export const ADMIN_SEEDS = {
     { id: 15, name: "Pema Dema", email: "pema.dema@example.com", role: "Staff", status: "Active", joined: "2025-11-04", detail: "Registrar's Office" },
   ],
 
+  adminStaffVerifications: [
+    { id: 1, name: "Tashi Dorji", email: "tashi.dorji@cst.edu.bt", department: "Computer Science", registeredAt: "2026-10-22T10:24:00", status: "Pending Review" },
+    { id: 2, name: "Phuntsho Choden", email: "phuntsho.choden@cst.edu.bt", department: "Electrical Engineering", registeredAt: "2026-10-21T15:17:00", status: "Pending Review" },
+    { id: 3, name: "Karma Jamtsho", email: "karma.jamtsho@cst.edu.bt", department: "Mechanical Engineering", registeredAt: "2026-10-20T11:42:00", status: "Pending Review" },
+    { id: 4, name: "Dechen Sangay", email: "dechen.sangay@cst.edu.bt", department: "Mathematics", registeredAt: "2026-10-19T14:36:00", status: "Pending Review" },
+    { id: 5, name: "Namgay Bhutia", email: "namgay.bhutia@cst.edu.bt", department: "Information Technology", registeredAt: "2026-10-18T09:55:00", status: "Rejected" },
+    { id: 6, name: "Lhamo Tshering", email: "lhamo.tshering@cst.edu.bt", department: "Civil Engineering", registeredAt: "2026-10-17T16:20:00", status: "Approved" },
+    { id: 7, name: "Sonam Gyeltshen", email: "sonam.gyeltshen@cst.edu.bt", department: "Administration", registeredAt: "2026-10-16T13:12:00", status: "Pending Review" },
+  ],
+
   // Type: Job | Internship   Status: Approved | Pending | Rejected | Closed
   adminOpportunities: [
     { id: 1, title: "Software Engineer", type: "Job", company: "DrukTech", postedBy: "Alumni", location: "Thimphu", deadline: "2026-11-20", status: "Approved", description: "Build and maintain web services for government clients." },
