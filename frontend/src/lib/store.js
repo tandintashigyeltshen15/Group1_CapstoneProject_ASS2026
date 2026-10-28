@@ -16,18 +16,10 @@ const listeners = new Set();
 const cache = {};
 
 export const SEEDS = {
-<<<<<<< HEAD
   // Admin pages (see adminData.js)
   ...ADMIN_SEEDS,
 
   // Staff_Profile + User (Staff role)
-=======
-
-  // Admin pages (see adminData.js)
-  ...ADMIN_SEEDS,
-
-    // Staff_Profile + User (Staff role)
->>>>>>> e3a1797cd311d79310ff82dc0d35a70642cd61ae
   staffProfile: {
     name: "Dechen Pelden",
     email: "dechen.pelden@cst.edu.bt",
