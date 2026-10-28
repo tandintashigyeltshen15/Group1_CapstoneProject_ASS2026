@@ -15,7 +15,6 @@ import {
   IdCard,
   LogOut,
   Users,
-  FileText,
   ShieldCheck,
   Heart,
   Megaphone,

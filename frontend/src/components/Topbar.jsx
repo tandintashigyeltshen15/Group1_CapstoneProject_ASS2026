@@ -45,6 +45,7 @@ export default function Topbar({
   return (
     <header className="flex h-16 items-center gap-4 border-b border-gray-200 bg-white px-8">
       {showSearch && (
+<<<<<<< HEAD
       <form onSubmit={search} className="relative max-w-xl flex-1">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
         <input
@@ -54,6 +55,17 @@ export default function Topbar({
           className="w-full rounded-lg bg-gray-100 py-2.5 pl-9 pr-3 text-sm text-text outline-none focus:ring-2 focus:ring-primary/30"
         />
       </form>
+=======
+        <form onSubmit={search} className="relative max-w-xl flex-1">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={searchPlaceholder}
+            className="w-full rounded-lg bg-gray-100 py-2.5 pl-9 pr-3 text-sm text-text outline-none focus:ring-2 focus:ring-primary/30"
+          />
+        </form>
+>>>>>>> e3a1797cd311d79310ff82dc0d35a70642cd61ae
       )}
 
       <div className="ml-auto flex items-center gap-5">

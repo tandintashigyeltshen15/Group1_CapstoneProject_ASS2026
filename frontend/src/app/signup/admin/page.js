@@ -39,7 +39,7 @@ export default function AdminSignupPage() {
     <div className="min-h-screen bg-[#F8FAFC]">
       <div className="flex justify-between items-center px-10 pt-8 pb-4 max-w-6xl mx-auto">
         <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="CST Logo" width={44} height={44} />
+          <Image src="/cst-logo.png" alt="CST Logo" width={44} height={44} />
           <span className="text-[17px] font-bold text-[#192B50] leading-tight">
             CST ALUMNI<br />PORTAL
           </span>
