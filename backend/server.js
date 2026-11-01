@@ -3,9 +3,11 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 
+const db = require("./config/db");
 const prisma = require("./lib/prisma");
 const authRoutes = require("./routes/auth.routes");
 const catalogRoutes = require("./routes/catalog.routes");
+const legacyAuthRoutes = require("./routes/auth"); // the lead's original auth routes
 const errorHandler = require("./middleware/errorHandler");
 
 if (!process.env.JWT_SECRET) {
@@ -25,7 +27,18 @@ app.get("/", (req, res) => {
   res.json({ message: "CST Alumni Portal Backend is running" });
 });
 
-// Checks the server and the database connection
+// Test database connection (mysql2)
+app.get("/api/test-db", async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT DATABASE() AS database_name");
+    res.json({ message: "Database connected successfully", database: rows[0].database_name });
+  } catch (error) {
+    console.error("Database connection error:", error);
+    res.status(500).json({ message: "Database connection failed" });
+  }
+});
+
+// Test database connection (Prisma)
 app.get("/api/health", async (req, res) => {
   try {
     const roles = await prisma.role.findMany();
@@ -36,7 +49,8 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
-app.use("/api/auth", authRoutes);
+app.use("/api/auth", authRoutes); // register, login, me (checked first)
+app.use("/api/auth", legacyAuthRoutes); // anything else the original auth file defines
 app.use("/api/catalog", catalogRoutes);
 
 app.use((req, res) => res.status(404).json({ message: "Not found" }));
