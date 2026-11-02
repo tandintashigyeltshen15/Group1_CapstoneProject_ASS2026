@@ -7,7 +7,7 @@
 --  (stored as a bcrypt hash)
 --
 --  Demo logins
---    Admin    username: admin            (tashi.wangdi@cst.edu.bt)
+--    Admin    username: admin            (tashi.wangdi@rub.edu.bt)
 --    Staff    username: ST002            (Dechen Pelden, Alumni Relations)
 --    Student  username: 02210045         (Pema Choden)
 --    Alumni   username: sonam.dorji@drukconnect.bt  (Sonam Dorji)
@@ -23,40 +23,42 @@ INSERT INTO ROLE (RoleID, RoleName) VALUES
   (1,'Student'), (2,'Alumni'), (3,'Staff'), (4,'Admin');
 
 INSERT INTO DEPARTMENT (DepartmentID, DepartmentName, DepartmentType) VALUES
-  (1,'Information Technology','Academic'),
-  (2,'Computer Science','Academic'),
-  (3,'Civil Engineering','Academic'),
-  (4,'Electrical Engineering','Academic'),
-  (5,'Electronics & Communication','Academic'),
-  (6,'Architecture','Academic'),
-  (7,'Software Engineering','Academic'),
-  (8,'Alumni Relations','Administrative'),
-  (9,'Registrar''s Office','Administrative'),
-  (10,'Student Affairs','Administrative'),
-  (11,'IT Services','Administrative');
+  (1,'Architecture Department','Academic'),
+  (2,'Civil & Environmental Engineering Department','Academic'),
+  (3,'Computing Technologies Department','Academic'),
+  (4,'Electrical & Electronics Engineering Department','Academic'),
+  (5,'Mechanical Engineering Department','Academic'),
+  (6,'Science & Humanities Department','Academic'),
+  (7,'Alumni Relations','Administrative'),
+  (8,'Registrar''s Office','Administrative'),
+  (9,'Student Affairs','Administrative'),
+  (10,'IT Services','Administrative');
 
 INSERT INTO PROGRAMME (ProgrammeID, DepartmentID, ProgrammeName) VALUES
-  (1,1,'B.E. in Information Technology'),
-  (2,2,'B.E. in Computer Science'),
-  (3,3,'B.E. in Civil Engineering'),
+  (1,3,'B.E. in Information Technology'),
+  (2,5,'B.E. in Mechanical Engineering'),
+  (3,2,'B.E. in Civil Engineering'),
   (4,4,'B.E. in Electrical Engineering'),
-  (5,5,'B.E. in Electronics & Communication'),
-  (6,6,'B.Arch. in Architecture'),
-  (7,7,'B.E. in Software Engineering');
+  (5,4,'B.E. in Electronics and Communication'),
+  (6,1,'B.Arch. in Architecture'),
+  (7,3,'B.E. in Software Engineering'),
+  (8,2,'B.E. in Engineering Geology'),
+  (9,4,'B.E. in Instrumentation and Control Engineering'),
+  (10,2,'B.E. in Water Resource Engineering');
 
 -- ---------------------------------------------------------------------
 -- Users   1 admin | 2-3 staff | 4-9 students | 10-21 alumni
 -- ---------------------------------------------------------------------
 INSERT INTO `USER` (UserID, RoleID, Username, PasswordHash, Name, Email, PhoneNo, AccountStatus, CreatedAt) VALUES
-  (1, 4,'admin',        @pw,'Tashi Wangdi',  'tashi.wangdi@cst.edu.bt',  '17100001','Active','2024-01-10 09:00:00'),
-  (2, 3,'ST002',        @pw,'Dechen Pelden', 'dechen.pelden@cst.edu.bt', '17100002','Active','2024-02-02 09:00:00'),
-  (3, 3,'ST003',        @pw,'Pema Dema',     'pema.dema@cst.edu.bt',     '17100003','Active','2025-11-04 09:00:00'),
-  (4, 1,'02210045',     @pw,'Pema Choden',   'pema.choden@cst.edu.bt',   '17200001','Active','2026-08-05 10:00:00'),
-  (5, 1,'02210112',     @pw,'Tenzin Wangmo', 'tenzin.wangmo@cst.edu.bt', '17200002','Active','2026-08-06 10:00:00'),
-  (6, 1,'02200078',     @pw,'Karma Jamtsho', 'karma.jamtsho@cst.edu.bt', '17200003','Active','2026-08-09 10:00:00'),
-  (7, 1,'02210201',     @pw,'Dechen Yangzom','dechen.yangzom@cst.edu.bt','17200004','Active','2026-08-10 10:00:00'),
-  (8, 1,'02210150',     @pw,'Sonam Pelden',  'sonam.pelden@cst.edu.bt',  '17200005','Suspended','2026-08-12 10:00:00'),
-  (9, 1,'02200033',     @pw,'Ugyen Tshering','ugyen.tshering@cst.edu.bt','17200006','Active','2026-08-15 10:00:00'),
+  (1, 4,'admin',        @pw,'Tashi Wangdi',  'tashi.wangdi@rub.edu.bt',  '17100001','Active','2024-01-10 09:00:00'),
+  (2, 3,'ST002',        @pw,'Dechen Pelden', 'dechen.pelden@rub.edu.bt', '17100002','Active','2024-02-02 09:00:00'),
+  (3, 3,'ST003',        @pw,'Pema Dema',     'pema.dema@rub.edu.bt',     '17100003','Active','2025-11-04 09:00:00'),
+  (4, 1,'02210045',     @pw,'Pema Choden',   'pema.choden@rub.edu.bt',   '17200001','Active','2026-08-05 10:00:00'),
+  (5, 1,'02210112',     @pw,'Tenzin Wangmo', 'tenzin.wangmo@rub.edu.bt', '17200002','Active','2026-08-06 10:00:00'),
+  (6, 1,'02200078',     @pw,'Karma Jamtsho', 'karma.jamtsho@rub.edu.bt', '17200003','Active','2026-08-09 10:00:00'),
+  (7, 1,'02210201',     @pw,'Dechen Yangzom','dechen.yangzom@rub.edu.bt','17200004','Active','2026-08-10 10:00:00'),
+  (8, 1,'02210150',     @pw,'Sonam Pelden',  'sonam.pelden@rub.edu.bt',  '17200005','Suspended','2026-08-12 10:00:00'),
+  (9, 1,'02200033',     @pw,'Ugyen Tshering','ugyen.tshering@rub.edu.bt','17200006','Active','2026-08-15 10:00:00'),
   (10,2,'sonam.dorji@drukconnect.bt',  @pw,'Sonam Dorji',   'sonam.dorji@drukconnect.bt',  '17123456','Active','2025-02-01 10:00:00'),
   (11,2,'test.alumni@example.com',     @pw,'Test Alumni',   'test.alumni@example.com',     '17300001','Active','2025-02-15 10:00:00'),
   (12,2,'sonam.choki@example.com',     @pw,'Sonam Choki',   'sonam.choki@example.com',     '17300002','Active','2025-06-02 10:00:00'),
