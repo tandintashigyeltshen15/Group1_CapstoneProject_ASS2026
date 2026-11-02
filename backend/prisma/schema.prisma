@@ -32,6 +32,7 @@ model alumni {
   verification_request     verification_request[]
 
   @@index([ProgrammeID, GraduationYear], map: "idx_alumni_programme_year")
+  @@map("ALUMNI")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -46,6 +47,7 @@ model application {
 
   @@unique([StudentID, OpportunityID], map: "uq_application_student_opportunity")
   @@index([OpportunityID, ApplicationStatus], map: "idx_application_opportunity_status")
+  @@map("APPLICATION")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -59,6 +61,7 @@ model career_history {
   alumni       alumni    @relation(fields: [AlumniID], references: [AlumniID], onDelete: Cascade, onUpdate: NoAction, map: "fk_career_alumni")
 
   @@index([AlumniID, StartDate], map: "idx_career_alumni")
+  @@map("CAREER_HISTORY")
 }
 
 model contribution {
@@ -86,6 +89,7 @@ model contribution {
   @@index([InitiativeID], map: "fk_contribution_initiative")
   @@index([VerifiedBy], map: "fk_contribution_verifier")
   @@index([Status, ContributionDate], map: "idx_contribution_status")
+  @@map("CONTRIBUTION")
 }
 
 model department {
@@ -94,6 +98,7 @@ model department {
   DepartmentType department_DepartmentType @default(Academic)
   programme      programme[]
   staff          staff[]
+  @@map("DEPARTMENT")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -117,6 +122,7 @@ model event {
   @@index([CreatorID], map: "fk_event_creator")
   @@index([EventDate], map: "idx_event_date")
   @@index([Status, ApprovalStatus], map: "idx_event_status")
+  @@map("EVENT")
 }
 
 model event_registration {
@@ -129,6 +135,7 @@ model event_registration {
 
   @@unique([UserID, EventID], map: "uq_registration_user_event")
   @@index([EventID], map: "fk_registration_event")
+  @@map("EVENT_REGISTRATION")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -149,6 +156,7 @@ model mentorship_request {
 
   @@index([AlumniID, Status], map: "idx_mentorship_alumni_status")
   @@index([StudentID], map: "idx_mentorship_student")
+  @@map("MENTORSHIP_REQUEST")
 }
 
 model notification {
@@ -163,6 +171,7 @@ model notification {
   user             user     @relation(fields: [UserID], references: [UserID], onDelete: Cascade, onUpdate: NoAction, map: "fk_notification_user")
 
   @@index([UserID, IsRead, CreatedAt], map: "idx_notification_user")
+  @@map("NOTIFICATION")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -189,6 +198,7 @@ model opportunity {
 
   @@index([CreatorID], map: "idx_opportunity_creator")
   @@index([Status, Deadline], map: "idx_opportunity_status_deadline")
+  @@map("OPPORTUNITY")
 }
 
 model programme {
@@ -200,6 +210,7 @@ model programme {
   student       student[]
 
   @@index([DepartmentID], map: "fk_programme_department")
+  @@map("PROGRAMME")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -214,6 +225,7 @@ model project {
   alumni        alumni    @relation(fields: [AlumniID], references: [AlumniID], onDelete: Cascade, onUpdate: NoAction, map: "fk_project_alumni")
 
   @@index([AlumniID], map: "idx_project_alumni")
+  @@map("PROJECT")
 }
 
 model publication {
@@ -225,12 +237,14 @@ model publication {
   alumni          alumni    @relation(fields: [AlumniID], references: [AlumniID], onDelete: Cascade, onUpdate: NoAction, map: "fk_publication_alumni")
 
   @@index([AlumniID], map: "idx_publication_alumni")
+  @@map("PUBLICATION")
 }
 
 model role {
   RoleID   Int    @id @default(autoincrement()) @db.UnsignedTinyInt
   RoleName String @unique(map: "uq_role_name") @db.VarChar(20)
   user     user[]
+  @@map("ROLE")
 }
 
 model staff {
@@ -244,6 +258,7 @@ model staff {
   user            user        @relation(fields: [UserID], references: [UserID], onDelete: Cascade, onUpdate: NoAction, map: "fk_staff_user")
 
   @@index([DepartmentID], map: "fk_staff_department")
+  @@map("STAFF")
 }
 
 model student {
@@ -274,6 +289,7 @@ model student {
   user               user                 @relation(fields: [UserID], references: [UserID], onDelete: Cascade, onUpdate: NoAction, map: "fk_student_user")
 
   @@index([ProgrammeID], map: "idx_student_programme")
+  @@map("STUDENT")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -306,6 +322,7 @@ model user {
   verification_request   verification_request[]
 
   @@index([RoleID, AccountStatus], map: "idx_user_role_status")
+  @@map("USER")
 }
 
 model announcement {
@@ -319,6 +336,7 @@ model announcement {
 
   @@index([CreatedBy], map: "fk_announcement_creator")
   @@index([CreatedAt], map: "idx_announcement_created")
+  @@map("ANNOUNCEMENT")
 }
 
 model collaboration_request {
@@ -337,6 +355,7 @@ model collaboration_request {
 
   @@index([AlumniID], map: "fk_collab_alumni")
   @@index([ReviewedBy], map: "fk_collab_reviewer")
+  @@map("COLLABORATION_REQUEST")
 }
 
 model initiative {
@@ -355,6 +374,7 @@ model initiative {
   initiative_participant initiative_participant[]
 
   @@index([CreatedBy], map: "fk_initiative_creator")
+  @@map("INITIATIVE")
 }
 
 model initiative_participant {
@@ -366,6 +386,7 @@ model initiative_participant {
 
   @@id([UserID, InitiativeID])
   @@index([InitiativeID], map: "fk_ip_initiative")
+  @@map("INITIATIVE_PARTICIPANT")
 }
 
 model password_reset {
@@ -378,6 +399,7 @@ model password_reset {
   user      user      @relation(fields: [UserID], references: [UserID], onDelete: Cascade, onUpdate: NoAction, map: "fk_reset_user")
 
   @@index([UserID], map: "fk_reset_user")
+  @@map("PASSWORD_RESET")
 }
 
 model saved_opportunity {
@@ -389,6 +411,7 @@ model saved_opportunity {
 
   @@id([StudentID, OpportunityID])
   @@index([OpportunityID], map: "fk_saved_opportunity")
+  @@map("SAVED_OPPORTUNITY")
 }
 
 model user_settings {
@@ -396,6 +419,7 @@ model user_settings {
   Settings  Json
   UpdatedAt DateTime @default(now()) @db.Timestamp(0)
   user      user     @relation(fields: [UserID], references: [UserID], onDelete: Cascade, onUpdate: NoAction, map: "fk_settings_user")
+  @@map("USER_SETTINGS")
 }
 
 model verification_request {
@@ -413,6 +437,7 @@ model verification_request {
   @@index([AlumniID], map: "fk_verification_alumni")
   @@index([ReviewedBy], map: "fk_verification_reviewer")
   @@index([Status, SubmittedAt], map: "idx_verification_status")
+  @@map("VERIFICATION_REQUEST")
 }
 
 enum department_DepartmentType {
