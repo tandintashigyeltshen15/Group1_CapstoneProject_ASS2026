@@ -21,6 +21,9 @@ const PORT = process.env.PORT || 5000;
 app.use(helmet());
 app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:3000" }));
 app.use(express.json());
+app.use("/api/admin", require("./routes/admin.routes"));
+app.use("/api/staff-signup", require("./routes/staff.routes"));
+app.use("/api/catalog", require("./routes/catalog.routes"));
 
 // Home route
 app.get("/", (req, res) => {
