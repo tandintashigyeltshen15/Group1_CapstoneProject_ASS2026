@@ -1,43 +1,44 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-  ArrowRight,
-  Check,
-  CheckCircle,
-  Clock3,
-  Eye,
-  Search,
-  ShieldCheck,
-  UserCheck,
-  UserPlus,
-  X,
-  XCircle,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Check, Eye, Search, ShieldCheck, X } from "lucide-react";
 import { Badge, Card, EmptyState, Notice, PageHeader, inputCls } from "@/components/ui";
-import { useStore, update, formatDateTime } from "@/lib/store";
+import { api } from "@/lib/api";
 import { Avatar, Modal, Table, btnSm, btnSmDanger, btnSmSuccess } from "@/components/AdminUI";
-
-const STEPS = [
-  { title: "Staff Registration", detail: "Staff submits their details and official CST email.", icon: UserPlus },
-  { title: "Pending Verification", detail: "Account remains limited until reviewed.", icon: Clock3 },
-  { title: "Administrator Review", detail: "Identity and employment are verified by an administrator.", icon: ShieldCheck },
-  { title: "Approval / Rejection", detail: "Account is approved or rejected with a reason.", icon: CheckCircle },
-  { title: "Access Granted", detail: "Approved staff can access staff features.", icon: UserCheck },
-];
 
 const statusTone = {
   "Pending Review": "orange",
   Approved: "green",
+  Suspended: "red",
   Rejected: "red",
 };
 
 export default function AdminStaffVerificationPage() {
-  const [requests] = useStore("adminStaffVerifications");
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [selected, setSelected] = useState(null);
+  const [rejecting, setRejecting] = useState(null);
+  const [reason, setReason] = useState("");
+  const [reasonError, setReasonError] = useState("");
   const [flash, setFlash] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      setRequests(await api("/admin/staff"));
+    } catch (err) {
+      setFlash({ tone: "red", text: err.message });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const visibleRequests = useMemo(() => {
     const search = query.trim().toLowerCase();
@@ -45,22 +46,60 @@ export default function AdminStaffVerificationPage() {
       const matchesStatus = status === "all" || request.status === status;
       const matchesSearch =
         !search ||
-        [request.name, request.email, request.department].some((value) =>
-          value.toLowerCase().includes(search)
+        [request.name, request.email, request.department, request.employeeId].some((value) =>
+          (value || "").toLowerCase().includes(search)
         );
       return matchesStatus && matchesSearch;
     });
   }, [requests, query, status]);
 
-  const updateStatus = (request, nextStatus) => {
-    update("adminStaffVerifications", (list) =>
-      list.map((item) => (item.id === request.id ? { ...item, status: nextStatus } : item))
-    );
+  const approve = async (request) => {
+    setBusy(true);
+    try {
+      await api(`/admin/staff/${request.id}/approve`, { method: "POST" });
+      setRequests((list) =>
+        list.map((item) => (item.id === request.id ? { ...item, status: "Approved" } : item))
+      );
+      setSelected(null);
+      setFlash({ tone: "green", text: `${request.name}'s staff registration was approved.` });
+    } catch (err) {
+      setFlash({ tone: "red", text: err.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openReject = (request) => {
     setSelected(null);
-    setFlash({
-      tone: nextStatus === "Approved" ? "green" : "red",
-      text: `${request.name}'s staff registration was ${nextStatus.toLowerCase()}.`,
-    });
+    setReason("");
+    setReasonError("");
+    setRejecting(request);
+  };
+
+  const confirmReject = async () => {
+    const text = reason.trim();
+    if (text.length < 5) {
+      setReasonError("Please give a reason of at least 5 characters.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await api(`/admin/staff/${rejecting.id}/reject`, {
+        method: "POST",
+        body: JSON.stringify({ reason: text }),
+      });
+      setRequests((list) =>
+        list.map((item) =>
+          item.id === rejecting.id ? { ...item, status: "Rejected", rejectionReason: text } : item
+        )
+      );
+      setFlash({ tone: "red", text: `${rejecting.name}'s staff registration was rejected.` });
+      setRejecting(null);
+    } catch (err) {
+      setReasonError(err.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -68,48 +107,8 @@ export default function AdminStaffVerificationPage() {
       <PageHeader title="Staff Verification" />
       {flash && <Notice tone={flash.tone}>{flash.text}</Notice>}
 
-      <Card className="mb-5 border-blue-100 bg-blue-50/50">
-        <div className="grid gap-6 lg:grid-cols-[minmax(220px,0.8fr)_2fr] lg:items-center">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-primary">
-              <ShieldCheck size={26} />
-            </div>
-            <div>
-              <h2 className="font-semibold text-sidebar">Staff Verification</h2>
-              <p className="mt-2 text-sm leading-6 text-muted">
-                Staff members must be verified by an authorized administrator before they can
-                access staff-only features. This ensures that only genuine CST employees are
-                granted access.
-              </p>
-            </div>
-          </div>
-
-          <ol className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            {STEPS.map(({ title, detail, icon: Icon }, index) => (
-              <li key={title} className="relative min-w-0 text-center">
-                {index > 0 && (
-                  <ArrowRight
-                    size={16}
-                    className="absolute -left-3 top-4 hidden text-blue-400 xl:block"
-                    aria-hidden="true"
-                  />
-                )}
-                <span className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-primary">
-                  <Icon size={18} />
-                </span>
-                <span className="mx-auto mt-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
-                  {index + 1}
-                </span>
-                <p className="mt-2 text-xs font-semibold text-sidebar">{title}</p>
-                <p className="mt-1 text-[11px] leading-4 text-muted">{detail}</p>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </Card>
-
       <Card
-        title="Pending Staff Verifications"
+        title="Staff Verifications"
         icon={ShieldCheck}
         action={<span className="text-sm text-muted">Review and approve or reject staff registration requests.</span>}
       >
@@ -120,7 +119,7 @@ export default function AdminStaffVerificationPage() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               className={`${inputCls} pl-9`}
-              placeholder="Search by name, email or department..."
+              placeholder="Search by name, email, ID or department..."
               aria-label="Search staff verification requests"
             />
           </label>
@@ -134,12 +133,18 @@ export default function AdminStaffVerificationPage() {
             <option value="Pending Review">Pending Review</option>
             <option value="Approved">Approved</option>
             <option value="Rejected">Rejected</option>
+            <option value="Suspended">Suspended</option>
           </select>
         </div>
 
         <Table
-          head={["#", "Name", "Email", "Department", "Registration Date", "Status", "Action"]}
-          empty={visibleRequests.length === 0 && <EmptyState message="No staff verification requests match your filters." />}
+          head={["#", "Name", "Employee ID", "Email", "Department", "Status", "Action"]}
+          empty={
+            !loading &&
+            visibleRequests.length === 0 && (
+              <EmptyState message="No staff verification requests match your filters." />
+            )
+          }
         >
           {visibleRequests.map((request, index) => (
             <tr key={request.id}>
@@ -150,9 +155,9 @@ export default function AdminStaffVerificationPage() {
                   <span className="whitespace-nowrap font-medium text-sidebar">{request.name}</span>
                 </div>
               </td>
+              <td className="px-3 py-3 text-text">{request.employeeId || "-"}</td>
               <td className="px-3 py-3 text-text">{request.email}</td>
-              <td className="px-3 py-3 text-text">{request.department}</td>
-              <td className="whitespace-nowrap px-3 py-3 text-muted">{formatDateTime(request.registeredAt)}</td>
+              <td className="px-3 py-3 text-text">{request.department || "-"}</td>
               <td className="px-3 py-3">
                 <Badge tone={statusTone[request.status] || "gray"}>{request.status}</Badge>
               </td>
@@ -163,14 +168,16 @@ export default function AdminStaffVerificationPage() {
                       <button
                         type="button"
                         className={btnSmSuccess}
-                        onClick={() => updateStatus(request, "Approved")}
+                        disabled={busy}
+                        onClick={() => approve(request)}
                       >
                         Approve
                       </button>
                       <button
                         type="button"
                         className={btnSmDanger}
-                        onClick={() => updateStatus(request, "Rejected")}
+                        disabled={busy}
+                        onClick={() => openReject(request)}
                       >
                         Reject
                       </button>
@@ -190,11 +197,13 @@ export default function AdminStaffVerificationPage() {
             </tr>
           ))}
         </Table>
+        {loading && <p className="mt-3 text-sm text-muted">Loading...</p>}
         <p className="mt-3 text-xs text-muted">
           Showing {visibleRequests.length} of {requests.length} results
         </p>
       </Card>
 
+      {/* Details */}
       {selected && (
         <Modal
           title="Staff Registration Details"
@@ -209,7 +218,8 @@ export default function AdminStaffVerificationPage() {
                   <button
                     type="button"
                     className={btnSmDanger}
-                    onClick={() => updateStatus(selected, "Rejected")}
+                    disabled={busy}
+                    onClick={() => openReject(selected)}
                   >
                     <X size={14} />
                     Reject
@@ -217,7 +227,8 @@ export default function AdminStaffVerificationPage() {
                   <button
                     type="button"
                     className={btnSmSuccess}
-                    onClick={() => updateStatus(selected, "Approved")}
+                    disabled={busy}
+                    onClick={() => approve(selected)}
                   >
                     <Check size={14} />
                     Approve
@@ -236,18 +247,73 @@ export default function AdminStaffVerificationPage() {
           </div>
           <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <dt className="text-xs text-muted">Official CST email</dt>
+              <dt className="text-xs text-muted">Employee ID</dt>
+              <dd className="text-sm font-medium text-sidebar">{selected.employeeId || "-"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted">Email</dt>
               <dd className="text-sm font-medium text-sidebar">{selected.email}</dd>
             </div>
             <div>
               <dt className="text-xs text-muted">Department</dt>
-              <dd className="text-sm font-medium text-sidebar">{selected.department}</dd>
+              <dd className="text-sm font-medium text-sidebar">{selected.department || "-"}</dd>
             </div>
             <div>
-              <dt className="text-xs text-muted">Registration date</dt>
-              <dd className="text-sm font-medium text-sidebar">{formatDateTime(selected.registeredAt)}</dd>
+              <dt className="text-xs text-muted">Designation</dt>
+              <dd className="text-sm font-medium text-sidebar">{selected.designation || "-"}</dd>
             </div>
+            {selected.status === "Rejected" && (
+              <div className="sm:col-span-2">
+                <dt className="text-xs text-muted">Reason for rejection</dt>
+                <dd className="text-sm font-medium text-red-600">
+                  {selected.rejectionReason || "-"}
+                </dd>
+              </div>
+            )}
           </dl>
+        </Modal>
+      )}
+
+      {/* Rejection reason */}
+      {rejecting && (
+        <Modal
+          title="Reject Staff Registration"
+          onClose={() => setRejecting(null)}
+          footer={
+            <>
+              <button type="button" className={btnSm} onClick={() => setRejecting(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={btnSmDanger}
+                disabled={busy}
+                onClick={confirmReject}
+              >
+                <X size={14} />
+                {busy ? "Rejecting..." : "Reject"}
+              </button>
+            </>
+          }
+        >
+          <p className="mb-3 text-sm text-text">
+            You are rejecting <span className="font-semibold">{rejecting.name}</span> (
+            {rejecting.employeeId}). The reason is saved with the registration and shown to the
+            person when they try to log in.
+          </p>
+          <label className="mb-1 block text-xs font-medium text-sidebar">
+            Reason for rejection
+          </label>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={4}
+            maxLength={500}
+            placeholder="e.g. Employee ID was not found in the CST staff list."
+            className={inputCls}
+          />
+          <p className="mt-1 text-right text-xs text-muted">{reason.length}/500</p>
+          {reasonError && <p className="mt-2 text-sm text-red-500">{reasonError}</p>}
         </Modal>
       )}
     </div>
