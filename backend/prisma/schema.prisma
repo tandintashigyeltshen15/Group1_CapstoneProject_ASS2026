@@ -235,6 +235,7 @@ model user {
   Name               String               @db.VarChar(50)
   Email              String               @unique(map: "Email") @db.VarChar(254)
   AccountStatus      String               @default("Pending") @db.VarChar(20)
+  RejectionReason    String?              @db.VarChar(250)
   CreatedAt          DateTime?            @default(now()) @db.DateTime(0)
   alumni             alumni?
   event              event[]

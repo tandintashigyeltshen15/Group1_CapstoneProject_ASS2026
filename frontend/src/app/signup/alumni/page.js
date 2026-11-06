@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Eye, EyeOff, User, UploadCloud, FileText, X } from "lucide-react";
+import { api } from "@/lib/api";
 
 const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png"];
 const MAX_MB = 5;
@@ -13,22 +14,40 @@ const formatSize = (bytes) =>
     ? `${Math.round(bytes / 1024)} KB`
     : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
+const inputClass =
+  "w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm font-normal text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#078F63]";
+
+const selectClass = (value) =>
+  `w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm font-normal appearance-none bg-white focus:outline-none focus:border-[#078F63] ${
+    value ? "text-[#192B50]" : "text-[#9AA6BC]"
+  }`;
+
 export default function AlumniSignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [proofFile, setProofFile] = useState(null);
   const [fileError, setFileError] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [programmes, setProgrammes] = useState([]);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
     graduationYear: "",
-    department: "",
+    programmeId: "",
     currentDesignation: "",
     password: "",
     confirmPassword: "",
     agreed: false,
   });
+
+  useEffect(() => {
+    api("/catalog/programmes")
+      .then(setProgrammes)
+      .catch((err) => setError(err.message));
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -49,10 +68,16 @@ export default function AlumniSignupPage() {
     setProofFile(file);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match");
+      setError("Passwords do not match.");
       return;
     }
     if (!proofFile) {
@@ -60,23 +85,35 @@ export default function AlumniSignupPage() {
       return;
     }
     if (!formData.agreed) {
-      alert("Please agree to the Terms & Conditions");
+      setError("Please agree to the Terms & Conditions.");
       return;
     }
 
-    // Files are sent as multipart form data, not JSON
-    const body = new FormData();
-    Object.entries(formData).forEach(([key, value]) => {
-      if (key !== "confirmPassword" && key !== "agreed") body.append(key, value);
-    });
-    body.append("proof", proofFile);
-
-    // TODO (backend phase): POST /api/auth/register with `body`
-    console.log("Alumni signup:", formData, proofFile.name);
+    setLoading(true);
+    try {
+      // The proof document is NOT sent yet: the backend has nowhere to store it.
+      // It needs a new column for the file URL, an upload package (multer) and file storage.
+      const data = await api("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          role: "ALUMNI",
+          fullName: formData.fullName.trim(),
+          email: formData.email.trim(),
+          password: formData.password,
+          programmeId: Number(formData.programmeId),
+          graduationYear: Number(formData.graduationYear),
+        }),
+      });
+      setSuccess(data.message);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const currentYear = new Date().getFullYear();
-const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYear - i);
+  const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYear - i);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
@@ -136,8 +173,9 @@ const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYe
                 value={formData.fullName}
                 onChange={handleChange}
                 placeholder="Enter your full name"
+                maxLength={50}
                 required
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#078F63]"
+                className={inputClass}
               />
             </Field>
 
@@ -149,7 +187,7 @@ const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYe
                 onChange={handleChange}
                 placeholder="Enter your email address"
                 required
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#078F63]"
+                className={inputClass}
               />
             </Field>
 
@@ -159,33 +197,31 @@ const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYe
                 value={formData.graduationYear}
                 onChange={handleChange}
                 required
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] appearance-none bg-white focus:outline-none focus:border-[#078F63]"
+                className={selectClass(formData.graduationYear)}
               >
                 <option value="">Select your graduation year</option>
                 {years.map((y) => (
-                  <option key={y} value={y}>{y}</option>
+                  <option key={y} value={y} className="text-[#192B50]">
+                    {y}
+                  </option>
                 ))}
               </select>
             </Field>
 
-            <Field label="Department">
+            <Field label="Programme">
               <select
-                name="department"
-                value={formData.department}
+                name="programmeId"
+                value={formData.programmeId}
                 onChange={handleChange}
                 required
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] appearance-none bg-white focus:outline-none focus:border-[#078F63]"
+                className={selectClass(formData.programmeId)}
               >
-                <option value="">Select your department</option>
-                <option value="civil">Civil Engineering</option>
-                <option value="ece">Electronics & Communication Engineering</option>
-                <option value="me">Mechanical Engineering</option>
-                <option value="electrical">Electrical Engineering</option>
-                <option value="it">Information Technology</option>
-                <option value="swe">Software Engineering</option>
-                <option value="water">Water Resource Engineering</option>
-                <option value="arch">Architecture</option>
-                <option value="ice">Instrumental and Control Engineering</option>
+                <option value="">Select your programme</option>
+                {programmes.map((p) => (
+                  <option key={p.id} value={p.id} className="text-[#192B50]">
+                    {p.name}
+                  </option>
+                ))}
               </select>
             </Field>
 
@@ -196,7 +232,7 @@ const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYe
                 value={formData.currentDesignation}
                 onChange={handleChange}
                 placeholder="Enter your current job title"
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#078F63]"
+                className={inputClass}
               />
             </Field>
 
@@ -282,11 +318,12 @@ const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYe
                   onChange={handleChange}
                   placeholder="Create a password"
                   required
-                  className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 pr-11 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#078F63]"
+                  className={`${inputClass} pr-11`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9AA6BC]"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -303,11 +340,12 @@ const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYe
                   onChange={handleChange}
                   placeholder="Confirm your password"
                   required
-                  className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 pr-11 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#078F63]"
+                  className={`${inputClass} pr-11`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirm(!showConfirm)}
+                  aria-label={showConfirm ? "Hide password" : "Show password"}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9AA6BC]"
                 >
                   {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -324,24 +362,36 @@ const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYe
                 onChange={handleChange}
                 className="w-4 h-4 accent-[#078F63] border-[#078F63]"
               />
-              <span className="text-sm">
-                <a href="#" className="text-[#192B50] font-medium">Terms &amp; Conditions</a>
-                {"   "}
+              <span className="text-sm text-[#71809D]">
+                I agree to the{" "}
+                <a href="#" className="text-[#192B50] font-medium">Terms &amp; Conditions</a> and{" "}
                 <a href="#" className="text-[#192B50] font-medium">Privacy Policy</a>
               </span>
             </div>
 
+            {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
+
             {/* Submit */}
-            <button
-              type="submit"
-              className="w-full bg-[#078F63] hover:bg-[#067350] text-white py-3.5 rounded-lg text-[15px] font-semibold transition-colors"
-            >
-              Create Alumni Account
-            </button>
+            {success ? (
+              <div className="rounded-lg bg-green-50 p-4 text-sm text-green-700">
+                {success}{" "}
+                <Link href="/login?role=alumni" className="font-semibold underline">
+                  Go to login
+                </Link>
+              </div>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#078F63] hover:bg-[#067350] text-white py-3.5 rounded-lg text-[15px] font-semibold transition-colors disabled:opacity-60"
+              >
+                {loading ? "Creating account..." : "Create Alumni Account"}
+              </button>
+            )}
 
             <p className="text-center text-sm text-[#71809D] mt-5">
               Already have an account?{" "}
-              <Link href="/login" className="text-[#2563EB] font-medium">
+              <Link href="/login?role=alumni" className="text-[#2563EB] font-medium">
                 Login here
               </Link>
             </p>
