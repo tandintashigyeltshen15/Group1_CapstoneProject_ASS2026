@@ -9,6 +9,8 @@ const authRoutes = require("./routes/auth.routes");
 const catalogRoutes = require("./routes/catalog.routes");
 const legacyAuthRoutes = require("./routes/auth"); // the lead's original auth routes
 const errorHandler = require("./middleware/errorHandler");
+const alumniRoutes = require("./routes/alumni.routes");
+const eventsRoutes = require("./routes/events.routes");
 
 if (!process.env.JWT_SECRET) {
   console.error("JWT_SECRET is missing in .env");
@@ -24,6 +26,7 @@ app.use(express.json());
 app.use("/api/admin", require("./routes/admin.routes"));
 app.use("/api/staff-signup", require("./routes/staff.routes"));
 app.use("/api/catalog", require("./routes/catalog.routes"));
+app.use("/api/events", eventsRoutes);
 
 // Home route
 app.get("/", (req, res) => {
@@ -55,6 +58,7 @@ app.get("/api/health", async (req, res) => {
 app.use("/api/auth", authRoutes); // register, login, me (checked first)
 app.use("/api/auth", legacyAuthRoutes); // anything else the original auth file defines
 app.use("/api/catalog", catalogRoutes);
+app.use("/api/alumni", alumniRoutes);
 
 app.use((req, res) => res.status(404).json({ message: "Not found" }));
 app.use(errorHandler);
