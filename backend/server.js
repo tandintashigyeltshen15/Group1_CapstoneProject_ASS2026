@@ -10,6 +10,7 @@ const catalogRoutes = require("./routes/catalog.routes");
 const legacyAuthRoutes = require("./routes/auth"); // the lead's original auth routes
 const errorHandler = require("./middleware/errorHandler");
 const alumniRoutes = require("./routes/alumni.routes");
+const eventsRoutes = require("./routes/events.routes");
 
 if (!process.env.JWT_SECRET) {
   console.error("JWT_SECRET is missing in .env");
@@ -25,6 +26,7 @@ app.use(express.json());
 app.use("/api/admin", require("./routes/admin.routes"));
 app.use("/api/staff-signup", require("./routes/staff.routes"));
 app.use("/api/catalog", require("./routes/catalog.routes"));
+app.use("/api/events", eventsRoutes);
 
 // Home route
 app.get("/", (req, res) => {
