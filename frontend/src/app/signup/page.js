@@ -3,6 +3,76 @@
 import Link from "next/link";
 import Image from "next/image";
 
+// Full class names are written out so Tailwind can detect them.
+const SELF_SIGNUP_ROLES = [
+  {
+    key: "student",
+    icon: "🎓",
+    title: "Student",
+    titleClass: "text-primary",
+    description: "Access academic resources, events and campus opportunities.",
+    href: "/signup/student",
+    cta: "Register as Student",
+    buttonClass: "bg-primary text-white",
+  },
+  {
+    key: "alumni",
+    icon: "🧑",
+    title: "Alumni",
+    titleClass: "text-alumni",
+    description: "Connect with alumni, explore events and grow your network.",
+    href: "/signup/alumni",
+    cta: "Register as Alumni",
+    buttonClass: "bg-alumni text-white",
+  },
+  {
+    key: "staff",
+    icon: "🏛",
+    title: "Staff",
+    titleClass: "text-accent",
+    description: "Manage events, content and support the alumni community.",
+    href: "/signup/staff",
+    cta: "Register as Staff",
+    buttonClass: "bg-accent text-white",
+  },
+];
+
+const ADMIN_CREATED_ROLES = [
+  {
+    key: "admin",
+    icon: "🏢",
+    title: "Administration",
+    titleClass: "text-admin",
+    description: "Manage system settings, users and portal configurations.",
+    href: "/login?role=admin",
+    cta: "Administrator Login",
+    buttonClass: "border border-admin text-admin hover:bg-admin/10",
+  },
+];
+
+function RoleCard({ role, adminCreated }) {
+  return (
+    <div className="bg-white text-text rounded-xl p-6 w-60 flex flex-col items-center text-center">
+      <div className="text-4xl mb-3">{role.icon}</div>
+      <h3 className={`text-lg font-bold mb-2 ${role.titleClass}`}>{role.title}</h3>
+      <p className="text-sm text-muted mb-4">{role.description}</p>
+
+      {adminCreated && (
+        <p className="mb-4 rounded-lg bg-gray-100 px-3 py-2 text-xs text-muted">
+          Accounts are created by the CST administrator. Please contact them to get access.
+        </p>
+      )}
+
+      <Link
+        href={role.href}
+        className={`mt-auto w-full py-2 rounded-lg text-sm font-medium ${role.buttonClass}`}
+      >
+        {role.cta}
+      </Link>
+    </div>
+  );
+}
+
 export default function RoleSelectionPage() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-white text-white">
@@ -25,69 +95,19 @@ export default function RoleSelectionPage() {
 
         <div className="text-center mb-10">
           <h2 className="text-3xl font-bold">Join the CST Community</h2>
-          <p className="text-gray-300 mt-2">Select your role to create an account</p>
+          <p className="text-gray-300 mt-2">
+            Students, alumni and staff can register here. Administrator accounts are
+            created by the system administrator.
+          </p>
         </div>
 
         <div className="flex flex-wrap justify-center gap-6">
-          {/* Student */}
-          <div className="bg-white text-text rounded-xl p-6 w-60 flex flex-col items-center text-center">
-            <div className="text-4xl mb-3">🎓</div>
-            <h3 className="text-lg font-bold mb-2 text-primary">Student</h3>
-            <p className="text-sm text-muted mb-6">
-              Access academic resources, events and campus opportunities.
-            </p>
-            <Link
-              href="/signup/student"
-              className="bg-primary text-white w-full py-2 rounded-lg text-sm font-medium"
-            >
-              Register as Student
-            </Link>
-          </div>
-
-          {/* Alumni */}
-          <div className="bg-white text-text rounded-xl p-6 w-60 flex flex-col items-center text-center">
-            <div className="text-4xl mb-3">🧑</div>
-            <h3 className="text-lg font-bold mb-2 text-alumni">Alumni</h3>
-            <p className="text-sm text-muted mb-6">
-              Connect with alumni, explore events and grow your network.
-            </p>
-            <Link
-              href="/signup/alumni"
-              className="bg-alumni text-white w-full py-2 rounded-lg text-sm font-medium"
-            >
-              Register as Alumni
-            </Link>
-          </div>
-
-          {/* Staff */}
-          <div className="bg-white text-text rounded-xl p-6 w-60 flex flex-col items-center text-center">
-            <div className="text-4xl mb-3">🏛</div>
-            <h3 className="text-lg font-bold mb-2 text-accent">Staff</h3>
-            <p className="text-sm text-muted mb-6">
-              Manage events, content and support the alumni community.
-            </p>
-            <Link
-              href="/signup/staff"
-              className="bg-accent text-white w-full py-2 rounded-lg text-sm font-medium"
-            >
-              Register as Staff
-            </Link>
-          </div>
-
-          {/* Administration */}
-          <div className="bg-white text-text rounded-xl p-6 w-60 flex flex-col items-center text-center">
-            <div className="text-4xl mb-3">🏢</div>
-            <h3 className="text-lg font-bold mb-2 text-admin">Administration</h3>
-            <p className="text-sm text-muted mb-6">
-              Manage system settings, users and portal configurations.
-            </p>
-            <Link
-              href="/signup/admin"
-              className="bg-admin text-white w-full py-2 rounded-lg text-sm font-medium"
-            >
-              Register as Administration
-            </Link>
-          </div>
+          {SELF_SIGNUP_ROLES.map((role) => (
+            <RoleCard key={role.key} role={role} />
+          ))}
+          {ADMIN_CREATED_ROLES.map((role) => (
+            <RoleCard key={role.key} role={role} adminCreated />
+          ))}
         </div>
 
         <p className="text-center text-sm text-gray-300 mt-10">

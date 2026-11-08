@@ -1,50 +1,126 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Eye, EyeOff, User } from "lucide-react";
+import { Eye, EyeOff, User, UploadCloud, FileText, X } from "lucide-react";
+import { api } from "@/lib/api";
+
+const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png"];
+const MAX_MB = 5;
+
+const formatSize = (bytes) =>
+  bytes < 1024 * 1024
+    ? `${Math.round(bytes / 1024)} KB`
+    : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
+const inputClass =
+  "w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm font-normal text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#078F63]";
+
+const selectClass = (value) =>
+  `w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm font-normal appearance-none bg-white focus:outline-none focus:border-[#078F63] ${
+    value ? "text-[#192B50]" : "text-[#9AA6BC]"
+  }`;
 
 export default function AlumniSignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [proofFile, setProofFile] = useState(null);
+  const [fileError, setFileError] = useState("");
+  const [dragging, setDragging] = useState(false);
+  const [programmes, setProgrammes] = useState([]);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
     graduationYear: "",
-    department: "",
+    programmeId: "",
     currentDesignation: "",
     password: "",
     confirmPassword: "",
     agreed: false,
   });
 
+  useEffect(() => {
+    api("/catalog/programmes")
+      .then(setProgrammes)
+      .catch((err) => setError(err.message));
+  }, []);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData({ ...formData, [name]: type === "checkbox" ? checked : value });
   };
 
-  const handleSubmit = (e) => {
+  const pickFile = (file) => {
+    if (!file) return;
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setFileError("Please upload a PDF, JPG or PNG file.");
+      return;
+    }
+    if (file.size > MAX_MB * 1024 * 1024) {
+      setFileError(`File must be smaller than ${MAX_MB} MB.`);
+      return;
+    }
+    setFileError("");
+    setProofFile(file);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match");
+      setError("Passwords do not match.");
+      return;
+    }
+    if (!proofFile) {
+      setFileError("Please upload your proof of graduation.");
       return;
     }
     if (!formData.agreed) {
-      alert("Please agree to the Terms & Conditions");
+      setError("Please agree to the Terms & Conditions.");
       return;
     }
-    console.log("Alumni signup:", formData);
+
+    setLoading(true);
+    try {
+      // The proof document is NOT sent yet: the backend has nowhere to store it.
+      // It needs a new column for the file URL, an upload package (multer) and file storage.
+      const data = await api("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          role: "ALUMNI",
+          fullName: formData.fullName.trim(),
+          email: formData.email.trim(),
+          password: formData.password,
+          programmeId: Number(formData.programmeId),
+          graduationYear: Number(formData.graduationYear),
+        }),
+      });
+      setSuccess(data.message);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const years = Array.from({ length: 2026 - 1980 + 1 }, (_, i) => 2026 - i);
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYear - i);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       {/* Header */}
       <div className="flex justify-between items-center px-10 pt-8 pb-4 max-w-6xl mx-auto">
         <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="CST Logo" width={44} height={44} />
+          <Image src="/cst-logo.png" alt="CST Logo" width={44} height={44} />
           <span className="text-[17px] font-bold text-[#192B50] leading-tight">
             CST ALUMNI<br />PORTAL
           </span>
@@ -78,7 +154,7 @@ export default function AlumniSignupPage() {
               </p>
             </div>
 
-            {/* Curved campus photo */}
+            {/* Curved campus photo (needs public/campus.jpg) */}
             <div
               className="relative h-56 w-full"
               style={{ clipPath: "ellipse(70% 55% at 50% 100%)" }}
@@ -97,8 +173,9 @@ export default function AlumniSignupPage() {
                 value={formData.fullName}
                 onChange={handleChange}
                 placeholder="Enter your full name"
+                maxLength={50}
                 required
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#078F63]"
+                className={inputClass}
               />
             </Field>
 
@@ -110,7 +187,7 @@ export default function AlumniSignupPage() {
                 onChange={handleChange}
                 placeholder="Enter your email address"
                 required
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#078F63]"
+                className={inputClass}
               />
             </Field>
 
@@ -120,28 +197,31 @@ export default function AlumniSignupPage() {
                 value={formData.graduationYear}
                 onChange={handleChange}
                 required
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] appearance-none bg-white focus:outline-none focus:border-[#078F63]"
+                className={selectClass(formData.graduationYear)}
               >
                 <option value="">Select your graduation year</option>
                 {years.map((y) => (
-                  <option key={y} value={y}>{y}</option>
+                  <option key={y} value={y} className="text-[#192B50]">
+                    {y}
+                  </option>
                 ))}
               </select>
             </Field>
 
-            <Field label="Department">
+            <Field label="Programme">
               <select
-                name="department"
-                value={formData.department}
+                name="programmeId"
+                value={formData.programmeId}
                 onChange={handleChange}
                 required
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] appearance-none bg-white focus:outline-none focus:border-[#078F63]"
+                className={selectClass(formData.programmeId)}
               >
-                <option value="">Select your department</option>
-                <option value="cse">Computer Science & Engineering</option>
-                <option value="ece">Electronics & Communication</option>
-                <option value="civil">Civil Engineering</option>
-                <option value="electrical">Electrical Engineering</option>
+                <option value="">Select your programme</option>
+                {programmes.map((p) => (
+                  <option key={p.id} value={p.id} className="text-[#192B50]">
+                    {p.name}
+                  </option>
+                ))}
               </select>
             </Field>
 
@@ -152,8 +232,81 @@ export default function AlumniSignupPage() {
                 value={formData.currentDesignation}
                 onChange={handleChange}
                 placeholder="Enter your current job title"
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#078F63]"
+                className={inputClass}
               />
+            </Field>
+
+            {/* Proof of graduation */}
+            <Field label="Proof of CST graduation *">
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragging(true);
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragging(false);
+                  pickFile(e.dataTransfer.files?.[0]);
+                }}
+                className={`flex flex-col items-center rounded-2xl border px-6 py-7 text-center transition-colors ${
+                  dragging
+                    ? "border-[#2563EB] bg-blue-50"
+                    : fileError
+                    ? "border-red-400 bg-white"
+                    : "border-[#D7E0EE] bg-white"
+                }`}
+              >
+                <UploadCloud size={30} className="mb-2 text-[#2563EB]" />
+                <p className="text-[15px] font-semibold text-[#192B50]">
+                  Upload graduation document
+                </p>
+                <p className="mt-1 max-w-md text-sm text-[#71809D]">
+                  Choose a graduation certificate, degree certificate, or another document
+                  accepted by CST.
+                </p>
+                <p className="mt-2 text-xs text-[#9AA6BC]">
+                  PDF, JPG or PNG · Max {MAX_MB} MB
+                </p>
+
+                <label className="mt-4 cursor-pointer rounded-full border border-[#D7E0EE] px-6 py-2 text-sm font-medium text-[#192B50] hover:bg-gray-50">
+                  Choose file
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                    onChange={(e) => {
+                      pickFile(e.target.files?.[0]);
+                      e.target.value = "";
+                    }}
+                    className="hidden"
+                  />
+                </label>
+
+                {proofFile && (
+                  <div className="mt-4 flex w-full max-w-md items-center gap-3 rounded-lg bg-[#F8FAFC] px-4 py-2.5 text-left">
+                    <FileText size={20} className="shrink-0 text-[#078F63]" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-[#192B50]">
+                        {proofFile.name}
+                      </p>
+                      <p className="text-xs text-[#71809D]">{formatSize(proofFile.size)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setProofFile(null)}
+                      aria-label="Remove file"
+                      className="text-[#9AA6BC] hover:text-red-500"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                )}
+              </div>
+              {fileError && <p className="mt-2 text-sm text-red-500">{fileError}</p>}
+              <p className="mt-2 text-xs text-[#71809D]">
+                Your account will remain pending until staff verifies your submitted
+                information. Your document is only seen by CST staff.
+              </p>
             </Field>
 
             <Field label="Password">
@@ -165,11 +318,12 @@ export default function AlumniSignupPage() {
                   onChange={handleChange}
                   placeholder="Create a password"
                   required
-                  className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 pr-11 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#078F63]"
+                  className={`${inputClass} pr-11`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9AA6BC]"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -186,11 +340,12 @@ export default function AlumniSignupPage() {
                   onChange={handleChange}
                   placeholder="Confirm your password"
                   required
-                  className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 pr-11 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#078F63]"
+                  className={`${inputClass} pr-11`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirm(!showConfirm)}
+                  aria-label={showConfirm ? "Hide password" : "Show password"}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9AA6BC]"
                 >
                   {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -207,24 +362,36 @@ export default function AlumniSignupPage() {
                 onChange={handleChange}
                 className="w-4 h-4 accent-[#078F63] border-[#078F63]"
               />
-              <span className="text-sm">
-                <a href="#" className="text-[#192B50] font-medium">Terms &amp; Conditions</a>
-                {"   "}
+              <span className="text-sm text-[#71809D]">
+                I agree to the{" "}
+                <a href="#" className="text-[#192B50] font-medium">Terms &amp; Conditions</a> and{" "}
                 <a href="#" className="text-[#192B50] font-medium">Privacy Policy</a>
               </span>
             </div>
 
+            {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
+
             {/* Submit */}
-            <button
-              type="submit"
-              className="w-full bg-[#078F63] hover:bg-[#067350] text-white py-3.5 rounded-lg text-[15px] font-semibold transition-colors"
-            >
-              Create Alumni Account
-            </button>
+            {success ? (
+              <div className="rounded-lg bg-green-50 p-4 text-sm text-green-700">
+                {success}{" "}
+                <Link href="/login?role=alumni" className="font-semibold underline">
+                  Go to login
+                </Link>
+              </div>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#078F63] hover:bg-[#067350] text-white py-3.5 rounded-lg text-[15px] font-semibold transition-colors disabled:opacity-60"
+              >
+                {loading ? "Creating account..." : "Create Alumni Account"}
+              </button>
+            )}
 
             <p className="text-center text-sm text-[#71809D] mt-5">
               Already have an account?{" "}
-              <Link href="/login" className="text-[#2563EB] font-medium">
+              <Link href="/login?role=alumni" className="text-[#2563EB] font-medium">
                 Login here
               </Link>
             </p>

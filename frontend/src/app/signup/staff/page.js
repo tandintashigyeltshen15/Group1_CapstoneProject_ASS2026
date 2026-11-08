@@ -1,47 +1,92 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Eye, EyeOff, Square } from "lucide-react";
+import { Eye, EyeOff, Building2 } from "lucide-react";
+import { api } from "@/lib/api";
+
+const inputClass =
+  "w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm font-normal text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#7C3AED]";
+
+const selectClass = (value) =>
+  `w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm font-normal appearance-none bg-white focus:outline-none focus:border-[#7C3AED] ${
+    value ? "text-[#192B50]" : "text-[#9AA6BC]"
+  }`;
 
 export default function StaffSignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [departments, setDepartments] = useState([]);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
     employeeId: "",
-    department: "",
+    departmentId: "",
     designation: "",
     password: "",
     confirmPassword: "",
     agreed: false,
   });
 
+  useEffect(() => {
+    api("/catalog/departments")
+      .then(setDepartments)
+      .catch((err) => setError(err.message));
+  }, []);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData({ ...formData, [name]: type === "checkbox" ? checked : value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match");
+      setError("Passwords do not match.");
       return;
     }
     if (!formData.agreed) {
-      alert("Please agree to the Terms & Conditions");
+      setError("Please agree to the Terms & Conditions.");
       return;
     }
-    console.log("Staff signup:", formData);
+
+    setLoading(true);
+    try {
+      const data = await api("/staff-signup", {
+        method: "POST",
+        body: JSON.stringify({
+          fullName: formData.fullName.trim(),
+          email: formData.email.trim(),
+          employeeId: formData.employeeId.trim(),
+          departmentId: Number(formData.departmentId),
+          designation: formData.designation.trim(),
+          password: formData.password,
+        }),
+      });
+      setSuccess(data.message);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
+      {/* Header */}
       <div className="flex justify-between items-center px-10 pt-8 pb-4 max-w-6xl mx-auto">
         <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="CST Logo" width={44} height={44} />
+          <Image src="/cst-logo.png" alt="CST Logo" width={44} height={44} />
           <span className="text-[17px] font-bold text-[#192B50] leading-tight">
             CST ALUMNI<br />PORTAL
           </span>
@@ -51,20 +96,22 @@ export default function StaffSignupPage() {
         </Link>
       </div>
 
+      {/* Heading */}
       <div className="max-w-6xl mx-auto px-10 mb-6">
         <h1 className="text-[34px] font-bold text-[#192B50]">Create your staff account</h1>
         <p className="text-[#71809D] mt-1">
-          Join the CST community and connect with opportunities.
+          Register with your Employee ID. An administrator will approve your account.
         </p>
       </div>
 
+      {/* Card */}
       <div className="max-w-6xl mx-auto px-10 pb-16">
         <div className="flex border border-gray-300 rounded-2xl overflow-hidden">
           {/* Left panel */}
           <div className="relative w-[315px] shrink-0 bg-[#071D3B] text-white flex flex-col">
             <div className="flex-1 flex flex-col items-center justify-center text-center px-8 pt-10 relative z-10">
-              <div className="bg-accent/20 rounded-full w-20 h-20 flex items-center justify-center mb-5">
-                <Square className="text-accent fill-accent" size={26} strokeWidth={2} />
+              <div className="bg-[#2A1B4D] rounded-full w-20 h-20 flex items-center justify-center mb-5">
+                <Building2 className="text-[#A78BFA]" size={32} strokeWidth={1.75} />
               </div>
               <h2 className="text-xl font-bold mb-1">Staff Registration</h2>
               <p className="text-sm text-gray-300 mb-8">Create your staff account</p>
@@ -72,6 +119,7 @@ export default function StaffSignupPage() {
                 Your information is secure<br />and used only for CST services.
               </p>
             </div>
+
             <div
               className="relative h-56 w-full"
               style={{ clipPath: "ellipse(70% 55% at 50% 100%)" }}
@@ -90,8 +138,9 @@ export default function StaffSignupPage() {
                 value={formData.fullName}
                 onChange={handleChange}
                 placeholder="Enter your full name"
+                maxLength={50}
                 required
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-accent"
+                className={inputClass}
               />
             </Field>
 
@@ -103,7 +152,7 @@ export default function StaffSignupPage() {
                 onChange={handleChange}
                 placeholder="Enter your email address"
                 required
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-accent"
+                className={inputClass}
               />
             </Field>
 
@@ -113,25 +162,27 @@ export default function StaffSignupPage() {
                 name="employeeId"
                 value={formData.employeeId}
                 onChange={handleChange}
-                placeholder="Enter your employee ID"
+                placeholder="Enter your Employee ID"
+                maxLength={10}
                 required
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-accent"
+                className={inputClass}
               />
             </Field>
 
             <Field label="Department">
               <select
-                name="department"
-                value={formData.department}
+                name="departmentId"
+                value={formData.departmentId}
                 onChange={handleChange}
                 required
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] appearance-none bg-white focus:outline-none focus:border-accent"
+                className={selectClass(formData.departmentId)}
               >
                 <option value="">Select your department</option>
-                <option value="student-affairs">Student Affairs</option>
-                <option value="alumni-relations">Alumni Relations</option>
-                <option value="it-services">IT Services</option>
-                <option value="administration">Administration</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id} className="text-[#192B50]">
+                    {d.name}
+                  </option>
+                ))}
               </select>
             </Field>
 
@@ -142,8 +193,7 @@ export default function StaffSignupPage() {
                 value={formData.designation}
                 onChange={handleChange}
                 placeholder="Enter your designation"
-                required
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-accent"
+                className={inputClass}
               />
             </Field>
 
@@ -156,11 +206,12 @@ export default function StaffSignupPage() {
                   onChange={handleChange}
                   placeholder="Create a password"
                   required
-                  className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 pr-11 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-accent"
+                  className={`${inputClass} pr-11`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9AA6BC]"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -177,11 +228,12 @@ export default function StaffSignupPage() {
                   onChange={handleChange}
                   placeholder="Confirm your password"
                   required
-                  className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 pr-11 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-accent"
+                  className={`${inputClass} pr-11`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirm(!showConfirm)}
+                  aria-label={showConfirm ? "Hide password" : "Show password"}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9AA6BC]"
                 >
                   {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -195,25 +247,37 @@ export default function StaffSignupPage() {
                 name="agreed"
                 checked={formData.agreed}
                 onChange={handleChange}
-                className="w-4 h-4 accent-accent"
+                className="w-4 h-4 accent-[#7C3AED]"
               />
-              <span className="text-sm">
-                <a href="#" className="text-[#192B50] font-medium">Terms &amp; Conditions</a>
-                {"   "}
+              <span className="text-sm text-[#71809D]">
+                I agree to the{" "}
+                <a href="#" className="text-[#192B50] font-medium">Terms &amp; Conditions</a> and{" "}
                 <a href="#" className="text-[#192B50] font-medium">Privacy Policy</a>
               </span>
             </div>
 
-            <button
-              type="submit"
-              className="w-full bg-accent hover:opacity-90 text-white py-3.5 rounded-lg text-[15px] font-semibold transition-opacity"
-            >
-              Create Staff Account
-            </button>
+            {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
+
+            {success ? (
+              <div className="rounded-lg bg-green-50 p-4 text-sm text-green-700">
+                {success}{" "}
+                <Link href="/login?role=staff" className="font-semibold underline">
+                  Go to login
+                </Link>
+              </div>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] text-white py-3.5 rounded-lg text-[15px] font-semibold transition-colors disabled:opacity-60"
+              >
+                {loading ? "Submitting..." : "Create Staff Account"}
+              </button>
+            )}
 
             <p className="text-center text-sm text-[#71809D] mt-5">
               Already have an account?{" "}
-              <Link href="/login" className="text-[#2563EB] font-medium">
+              <Link href="/login?role=staff" className="text-[#2563EB] font-medium">
                 Login here
               </Link>
             </p>

@@ -15,9 +15,11 @@ import {
   IdCard,
   LogOut,
   Users,
-  FileText,
   ShieldCheck,
   Heart,
+  Megaphone,
+  BarChart3,
+  HandHeart,
 } from "lucide-react";
 
 const studentNavItems = [
@@ -36,22 +38,38 @@ const studentNavItems = [
 const adminNavItems = [
   { label: "Dashboard", href: "/admin/dashboard", icon: Home },
   { label: "User Management", href: "/admin/users", icon: Users },
+  { label: "Staff Verification", href: "/admin/staff-verification", icon: ShieldCheck },
   { label: "Opportunity Management", href: "/admin/opportunities", icon: Briefcase },
   { label: "Events Management", href: "/admin/events", icon: CalendarDays },
-  { label: "Contributions", href: "/admin/contributions", icon: FileText },
+  { label: "Contributions", href: "/admin/contributions", icon: HandHeart },
   { label: "Reports", href: "/admin/reports", icon: ClipboardList },
   { label: "Notifications", href: "/admin/notifications", icon: Bell },
   { label: "Settings", href: "/admin/settings", icon: Settings },
+];
+
+const staffNavItems = [
+  { label: "Dashboard", href: "/staff/dashboard", icon: Home },
+  { label: "Alumni Verification", href: "/staff/verification", icon: ShieldCheck },
+  { label: "Alumni Directory", href: "/staff/alumni", icon: BookOpen },
+  { label: "Opportunities", href: "/staff/opportunities", icon: Briefcase },
+  { label: "Events", href: "/staff/events", icon: CalendarDays },
+  { label: "Announcements", href: "/staff/announcements", icon: Megaphone },
+  { label: "Reports", href: "/staff/reports", icon: BarChart3 },
+  { label: "Settings", href: "/staff/settings", icon: Settings },
+  { label: "Notifications", href: "/staff/notifications", icon: Bell },
+  { label: "My Profile", href: "/staff/profile", icon: IdCard },
 ];
 
 export default function Sidebar({ role = "Student" }) {
   const pathname = usePathname();
   const router = useRouter();
 
+  const roleKey = role.toLowerCase();
   const navItems =
-    role.toLowerCase() === "admin" ||
-    role.toLowerCase() === "administrator"
+    roleKey === "admin" || roleKey === "administrator"
       ? adminNavItems
+      : roleKey === "staff"
+      ? staffNavItems
       : studentNavItems;
 
   const logout = () => {
