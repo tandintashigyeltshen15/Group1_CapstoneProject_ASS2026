@@ -11,6 +11,7 @@ const legacyAuthRoutes = require("./routes/auth"); // the lead's original auth r
 const errorHandler = require("./middleware/errorHandler");
 const alumniRoutes = require("./routes/alumni.routes");
 const eventsRoutes = require("./routes/events.routes");
+const staffPortalRoutes = require("./routes/staffPortal.routes");
 
 if (!process.env.JWT_SECRET) {
   console.error("JWT_SECRET is missing in .env");
@@ -59,6 +60,7 @@ app.use("/api/auth", authRoutes); // register, login, me (checked first)
 app.use("/api/auth", legacyAuthRoutes); // anything else the original auth file defines
 app.use("/api/catalog", catalogRoutes);
 app.use("/api/alumni", alumniRoutes);
+app.use("/api/staff", staffPortalRoutes); // staff portal routes (requires auth)
 
 app.use((req, res) => res.status(404).json({ message: "Not found" }));
 app.use(errorHandler);
