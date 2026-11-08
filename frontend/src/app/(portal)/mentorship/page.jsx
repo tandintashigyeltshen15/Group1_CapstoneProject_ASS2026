@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
 import {
   Users,
   Send,
@@ -14,23 +15,6 @@ import {
   Mail,
   X,
 } from "lucide-react";
-
-/* ------------------------------------------------------------------
-   DATA (temporary): empty for now. Later, fetch from the backend.
-
-   mentors:  { id, name, jobTitle, company, programme, graduationYear,
-               expertise: ["Software Development", "System Design"] }
-   requests: { id, date: "2026-10-10", status: "PENDING" | "ACCEPTED" | "DECLINED",
-               areaOfInterest, message,
-               mentor: { name, jobTitle, company, email } }
-------------------------------------------------------------------- */
-const initialMentors = [
-  { id: 1, name: "Test Alumni", jobTitle: "Software Engineer", company: "ABC Tech",
-    programme: "Software Engineering", graduationYear: 2024,
-    expertise: ["Software Development", "Career Guidance"] },
-];
-
-const initialRequests = [];
 
 const tabs = ["Overview", "Find a Mentor", "My Requests", "My Mentors"];
 
@@ -61,7 +45,7 @@ function Avatar({ name, size = "h-14 w-14" }) {
 }
 
 function StatusBadge({ status }) {
-  const { label, style, icon: Icon } = statusConfig[status];
+  const { label, style, icon: Icon } = statusConfig[status] || statusConfig.PENDING;
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${style}`}
@@ -120,6 +104,7 @@ function StatCard({ icon: Icon, label, value, linkLabel, onClick, iconStyle }) {
 }
 
 function MentorCard({ mentor, onRequest }) {
+  const isPending = mentor.myRequestStatus === "Pending";
   return (
     <div className="flex flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="mb-3 flex items-center gap-3">
@@ -146,9 +131,11 @@ function MentorCard({ mentor, onRequest }) {
       </div>
       <button
         onClick={() => onRequest(mentor)}
-        className="mt-auto flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-blue-50"
+        disabled={isPending}
+        className="mt-auto flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <UserPlus size={16} /> Request Mentorship
+        <UserPlus size={16} />
+        {isPending ? "Request Pending" : "Request Mentorship"}
       </button>
     </div>
   );
@@ -222,12 +209,43 @@ function Modal({ title, onClose, children }) {
 /* ------------------------------- page ------------------------------ */
 export default function MentorshipPage() {
   const [tab, setTab] = useState("Overview");
-  const [mentors] = useState(initialMentors);
-  const [requests, setRequests] = useState(initialRequests);
+  const [mentors, setMentors] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedMentor, setSelectedMentor] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [form, setForm] = useState({ areaOfInterest: "", message: "" });
+  const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const load = () =>
+    api("/mentorship")
+      .then((d) => {
+        setMentors(d.mentors);
+        setRequests(
+          d.requests.map((r) => {
+            const m = d.mentors.find((x) => x.id === r.alumniId);
+            return {
+              id: r.id,
+              date: r.date,
+              status: r.status.toUpperCase(), // "Pending" -> "PENDING"
+              areaOfInterest: r.subject,
+              message: r.detail,
+              mentor: {
+                name: r.mentorName,
+                jobTitle: m?.jobTitle || "",
+                company: m?.company || "",
+                email: r.contactEmail, // only filled once the mentor accepts
+              },
+            };
+          })
+        );
+      })
+      .catch((err) => console.warn(err.message));
+
+  useEffect(() => {
+    load();
+  }, []);
 
   const pending = requests.filter((r) => r.status === "PENDING");
   const accepted = requests.filter((r) => r.status === "ACCEPTED");
@@ -238,24 +256,33 @@ export default function MentorshipPage() {
       .includes(search.toLowerCase())
   );
 
-  const sendRequest = (e) => {
-    e.preventDefault();
-    // TODO (backend phase): POST /api/mentorship/requests
-    // For now the request is only added locally so the UI can be tested.
-    setRequests([
-      {
-        id: Date.now(),
-        date: new Date().toISOString(),
-        status: "PENDING",
-        areaOfInterest: form.areaOfInterest,
-        message: form.message,
-        mentor: selectedMentor,
-      },
-      ...requests,
-    ]);
+  const closeRequestModal = () => {
     setSelectedMentor(null);
-    setForm({ areaOfInterest: "", message: "" });
-    setTab("My Requests");
+    setError("");
+  };
+
+  const sendRequest = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSending(true);
+    try {
+      await api("/mentorship/requests", {
+        method: "POST",
+        body: JSON.stringify({
+          alumniId: selectedMentor.id,
+          subject: form.areaOfInterest,
+          detail: form.message,
+        }),
+      });
+      setSelectedMentor(null);
+      setForm({ areaOfInterest: "", message: "" });
+      await load();
+      setTab("My Requests");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -416,7 +443,7 @@ export default function MentorshipPage() {
       {selectedMentor && (
         <Modal
           title={`Request mentorship from ${selectedMentor.name}`}
-          onClose={() => setSelectedMentor(null)}
+          onClose={closeRequestModal}
         >
           <form onSubmit={sendRequest}>
             <label className="mb-1 block text-sm text-text">Area of interest</label>
@@ -425,6 +452,7 @@ export default function MentorshipPage() {
               onChange={(e) => setForm({ ...form, areaOfInterest: e.target.value })}
               placeholder="e.g. Web development, career planning"
               className={`${inputStyle} mb-4`}
+              maxLength={50}
               required
             />
             <label className="mb-1 block text-sm text-text">Short description</label>
@@ -436,11 +464,13 @@ export default function MentorshipPage() {
               className={`${inputStyle} mb-4`}
               required
             />
+            {error && <p className="mb-3 text-sm text-danger">{error}</p>}
             <button
               type="submit"
-              className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+              disabled={sending}
+              className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
             >
-              Send Request
+              {sending ? "Sending..." : "Send Request"}
             </button>
           </form>
         </Modal>

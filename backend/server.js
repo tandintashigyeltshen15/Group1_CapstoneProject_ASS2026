@@ -24,6 +24,11 @@ app.use(express.json());
 app.use("/api/admin", require("./routes/admin.routes"));
 app.use("/api/staff-signup", require("./routes/staff.routes"));
 app.use("/api/catalog", require("./routes/catalog.routes"));
+app.use("/api/student", require("./routes/student.routes"));
+app.use("/api/alumni-hub", require("./routes/alumniHub.routes"));
+app.use("/api/mentorship", require("./routes/mentorship.routes"));
+app.use("/api/internships", require("./routes/internships.routes"));
+app.use("/api/contributions", require("./routes/contributions.routes"));
 
 // Home route
 app.get("/", (req, res) => {
