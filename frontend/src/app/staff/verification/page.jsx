@@ -65,6 +65,13 @@ export default function AlumniVerificationPage() {
       const res = await fetch(`${API_ORIGIN}/api/verification/alumni/${r.id}/proof`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
+      if (res.status === 401) {
+        // Session expired: sign out and go back to login
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
+        return;
+      }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.message || "Could not open the document");

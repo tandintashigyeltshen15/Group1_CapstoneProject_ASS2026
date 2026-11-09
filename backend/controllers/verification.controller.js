@@ -1,3 +1,4 @@
+const path = require("path");
 const prisma = require("../lib/prisma");
 const { proofPath } = require("../lib/proofStorage");
 
@@ -62,6 +63,10 @@ exports.getProof = async (req, res, next) => {
       return res.status(404).json({ message: "No proof of graduation was uploaded" });
     }
 
+    // Send the right Content-Type so the browser shows the file instead of downloading it
+    const ext = path.extname(alumni.ProofDocument).toLowerCase();
+    const types = { ".pdf": "application/pdf", ".jpg": "image/jpeg", ".png": "image/png" };
+    res.setHeader("Content-Type", types[ext] || "application/octet-stream");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Cache-Control", "private, no-store");
     res.setHeader("Content-Disposition", "inline");
