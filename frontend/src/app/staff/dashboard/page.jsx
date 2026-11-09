@@ -1,12 +1,32 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { api } from "@/lib/api";
 import {
   CalendarDays, Briefcase, ClipboardList, ShieldCheck, ChevronRight, ArrowRight,
   MapPin, Clock, Zap, Plus, Megaphone, GraduationCap,
 } from "lucide-react";
-import { useStore, formatDate } from "@/lib/store";
 import { Card, Badge, EmptyState } from "@/components/ui";
+
+const fmtDate = (d) =>
+  new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+// Application statuses as stored in the database
+const appTones = {
+  "Under Review": "orange",
+  Shortlisted: "blue",
+  Accepted: "green",
+  "Not Selected": "red",
+};
+
+const emptyData = {
+  name: "",
+  stats: { pendingVerifications: 0, openOpportunities: 0, newApplications: 0, upcomingEvents: 0 },
+  pendingAlumni: [],
+  upcomingEventList: [],
+  recentApplications: [],
+};
 
 function ViewAll({ href }) {
   return (
@@ -48,49 +68,46 @@ function QuickAction({ icon: Icon, label, href }) {
   );
 }
 
-const appTones = { Submitted: "blue", UnderReview: "orange", Shortlisted: "blue", Accepted: "green", Rejected: "red", Withdrawn: "gray" };
-const appLabel = (s) => (s === "UnderReview" ? "Under review" : s);
-
 export default function StaffDashboardPage() {
-  const [profile] = useStore("staffProfile");
-  const [events] = useStore("events");
-  const [opportunities] = useStore("opportunities");
-  const [applications] = useStore("applications");
-  const [verification] = useStore("verificationRequests");
+  const [data, setData] = useState(emptyData);
+  const [loaded, setLoaded] = useState(false);
 
-  const now = new Date();
-  const upcoming = events
-    .filter((e) => e.status === "Published" && new Date(e.dateTime) >= now)
-    .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
-  const openOpps = opportunities.filter((o) => o.status === "Open");
-  const toReview = applications.filter((a) => a.applicationStatus === "Submitted").length;
-  const pending = verification
-    .filter((v) => v.status === "Pending")
-    .sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt));
-  const recentApps = [...applications]
-    .sort((a, b) => new Date(b.submissionDate) - new Date(a.submissionDate))
-    .slice(0, 4);
-  const oppTitle = (id) => opportunities.find((o) => o.id === id)?.title ?? "Removed posting";
+  useEffect(() => {
+    api("/staff/dashboard")
+      .then((d) => {
+        setData(d);
+        setLoaded(true);
+      })
+      .catch((err) => {
+        console.warn(err.message);
+        setLoaded(true);
+      });
+  }, []);
+
+  const { stats, pendingAlumni, upcomingEventList, recentApplications } = data;
+  const firstName = data.name ? data.name.split(" ")[0] : "";
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-sidebar">Welcome back, {profile.name.split(" ")[0]}</h1>
+      <h1 className="text-3xl font-bold text-sidebar">
+        Welcome back{firstName ? `, ${firstName}` : ""}
+      </h1>
       <p className="mb-6 text-muted">Here&apos;s what&apos;s happening at CST.</p>
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={ShieldCheck} label="Pending Verifications" value={pending.length} caption="Alumni awaiting review" href="/staff/verification" iconStyle="bg-blue-100 text-primary" />
-        <StatCard icon={Briefcase} label="Open Opportunities" value={openOpps.length} caption="Accepting applications" href="/staff/opportunities" iconStyle="bg-purple-100 text-accent" />
-        <StatCard icon={ClipboardList} label="New Applications" value={toReview} caption="Awaiting review" href="/staff/opportunities" iconStyle="bg-orange-100 text-warning" />
-        <StatCard icon={CalendarDays} label="Upcoming Events" value={upcoming.length} caption="Published" href="/staff/events" iconStyle="bg-green-100 text-success" />
+        <StatCard icon={ShieldCheck} label="Pending Verifications" value={stats.pendingVerifications} caption="Alumni awaiting review" href="/staff/verification" iconStyle="bg-blue-100 text-primary" />
+        <StatCard icon={Briefcase} label="Open Opportunities" value={stats.openOpportunities} caption="Accepting applications" href="/staff/opportunities" iconStyle="bg-purple-100 text-accent" />
+        <StatCard icon={ClipboardList} label="New Applications" value={stats.newApplications} caption="Awaiting review" href="/staff/opportunities" iconStyle="bg-orange-100 text-warning" />
+        <StatCard icon={CalendarDays} label="Upcoming Events" value={stats.upcomingEvents} caption="Published" href="/staff/events" iconStyle="bg-green-100 text-success" />
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card title="Alumni Awaiting Verification" icon={ShieldCheck} action={<ViewAll href="/staff/verification" />}>
-          {pending.length === 0 ? (
-            <EmptyState message="No alumni applications are waiting." />
+          {pendingAlumni.length === 0 ? (
+            <EmptyState message={loaded ? "No alumni applications are waiting." : "Loading..."} />
           ) : (
             <ul className="divide-y divide-gray-100">
-              {pending.slice(0, 3).map((v) => (
+              {pendingAlumni.map((v) => (
                 <li key={v.id} className="flex items-center gap-4 py-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-primary">
                     <GraduationCap size={18} />
@@ -99,7 +116,7 @@ export default function StaffDashboardPage() {
                     <p className="font-medium text-sidebar">{v.name}</p>
                     <p className="text-xs text-muted">{v.programme}, class of {v.graduationYear}</p>
                   </div>
-                  <span className="text-xs text-muted">{formatDate(v.submittedAt)}</span>
+                  <span className="text-xs text-muted">{fmtDate(v.appliedAt)}</span>
                 </li>
               ))}
             </ul>
@@ -107,11 +124,11 @@ export default function StaffDashboardPage() {
         </Card>
 
         <Card title="Upcoming Events" icon={CalendarDays} action={<ViewAll href="/staff/events" />}>
-          {upcoming.length === 0 ? (
-            <EmptyState message="No upcoming events. Create one from Events." />
+          {upcomingEventList.length === 0 ? (
+            <EmptyState message={loaded ? "No upcoming events. Create one from Events." : "Loading..."} />
           ) : (
             <ul className="divide-y divide-gray-100">
-              {upcoming.slice(0, 3).map((e) => {
+              {upcomingEventList.map((e) => {
                 const d = new Date(e.dateTime);
                 return (
                   <li key={e.id} className="flex items-center gap-4 py-3">
@@ -123,7 +140,9 @@ export default function StaffDashboardPage() {
                     </div>
                     <div className="flex-1">
                       <p className="font-medium text-sidebar">{e.title}</p>
-                      <p className="flex items-center gap-1 text-xs text-muted"><MapPin size={12} /> {e.venue}</p>
+                      {e.venue && (
+                        <p className="flex items-center gap-1 text-xs text-muted"><MapPin size={12} /> {e.venue}</p>
+                      )}
                       <p className="flex items-center gap-1 text-xs text-muted">
                         <Clock size={12} /> {d.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit" })}
                       </p>
@@ -138,19 +157,19 @@ export default function StaffDashboardPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card title="Recent Applications" icon={ClipboardList} action={<ViewAll href="/staff/opportunities" />}>
-          {recentApps.length === 0 ? (
-            <EmptyState message="No applications received yet." />
+          {recentApplications.length === 0 ? (
+            <EmptyState message={loaded ? "No applications received yet." : "Loading..."} />
           ) : (
             <ul className="divide-y divide-gray-100">
-              {recentApps.map((a) => (
+              {recentApplications.map((a) => (
                 <li key={a.id} className="flex items-center gap-4 py-3">
                   <div className="flex-1">
                     <p className="font-medium text-sidebar">{a.studentName}</p>
-                    <p className="text-xs text-muted">{oppTitle(a.opportunityId)}</p>
+                    <p className="text-xs text-muted">{a.opportunity}</p>
                   </div>
                   <div className="text-right">
-                    <Badge tone={appTones[a.applicationStatus]}>{appLabel(a.applicationStatus)}</Badge>
-                    <p className="mt-1 text-xs text-muted">{formatDate(a.submissionDate)}</p>
+                    <Badge tone={appTones[a.status] || "gray"}>{a.status}</Badge>
+                    <p className="mt-1 text-xs text-muted">{fmtDate(a.date)}</p>
                   </div>
                 </li>
               ))}

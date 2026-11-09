@@ -1,25 +1,63 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, CalendarDays, MapPin, Clock, Trash2, Pencil } from "lucide-react";
-import { useStore, update, nextId, addStaffNotification, formatDateTime } from "@/lib/store";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
+import { Plus, CalendarDays, MapPin, Clock, Trash2, Pencil, Users } from "lucide-react";
 import { PageHeader, Card, Badge, Field, EmptyState, Notice, inputCls, btnPrimary, btnOutline } from "@/components/ui";
 
 const empty = { title: "", description: "", dateTime: "", duration: "", venue: "" };
 const FILTERS = ["All", "Upcoming", "Completed", "Cancelled"];
-
-const isPast = (e) => e.status === "Completed" || new Date(e.dateTime) < new Date();
-const stateOf = (e) => (e.status === "Cancelled" ? "Cancelled" : isPast(e) ? "Completed" : "Upcoming");
 const tones = { Upcoming: "blue", Completed: "gray", Cancelled: "red" };
 
+const p2 = (n) => String(n).padStart(2, "0");
+// ISO from the API -> value for <input type="datetime-local">
+const toInput = (iso) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}`;
+};
+const fmtDateTime = (d) =>
+  new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
+
+const mapEvent = (e) => ({
+  id: e.EventID,
+  title: e.Title,
+  description: e.Description || "",
+  dateTime: e.DateTime,
+  duration: e.Duration || "",
+  venue: e.Venue || "",
+  status: e.Status,
+  registrations: e._count?.event_registration ?? 0,
+  postedBy: e.user?.Name || "",
+});
+
+const stateOf = (e) =>
+  e.status === "Cancelled" ? "Cancelled" : new Date(e.dateTime) < new Date() ? "Completed" : "Upcoming";
+
 export default function StaffEventsPage() {
-  const [events] = useStore("events");
+  const [events, setEvents] = useState([]);
+  const [loaded, setLoaded] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(empty);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [filter, setFilter] = useState("All");
+  const [busy, setBusy] = useState(false);
+
+  const load = () =>
+    api("/events")
+      .then((d) => {
+        setEvents(d.map(mapEvent));
+        setLoaded(true);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoaded(true);
+      });
+
+  useEffect(() => {
+    load();
+  }, []);
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
   const counts = FILTERS.reduce((acc, f) => {
@@ -30,6 +68,23 @@ export default function StaffEventsPage() {
     .slice()
     .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
 
+  async function run(action, successText) {
+    setError("");
+    setMessage("");
+    setBusy(true);
+    try {
+      await action();
+      setMessage(successText);
+      await load();
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function openCreate() {
     setEditingId(null);
     setForm(empty);
@@ -39,7 +94,13 @@ export default function StaffEventsPage() {
 
   function openEdit(ev) {
     setEditingId(ev.id);
-    setForm({ title: ev.title, description: ev.description ?? "", dateTime: ev.dateTime, duration: ev.duration ?? "", venue: ev.venue ?? "" });
+    setForm({
+      title: ev.title,
+      description: ev.description,
+      dateTime: toInput(ev.dateTime),
+      duration: ev.duration,
+      venue: ev.venue,
+    });
     setError("");
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -49,36 +110,37 @@ export default function StaffEventsPage() {
     setShowForm(false);
     setEditingId(null);
     setForm(empty);
-    setError("");
   }
 
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault();
     if (!form.title.trim() || !form.venue.trim()) return setError("Title and venue are required.");
     if (!form.dateTime) return setError("Please choose a date and time.");
 
-    if (editingId) {
-      update("events", (list) => list.map((x) => (x.id === editingId ? { ...x, ...form } : x)));
-      setMessage(`"${form.title}" was updated.`);
-    } else {
-      if (new Date(form.dateTime) < new Date()) return setError("The event date cannot be in the past.");
-      update("events", (list) => [{ ...form, id: nextId(list), status: "Published" }, ...list]);
-      addStaffNotification("Event", `"${form.title}" has been scheduled.`);
-      setMessage(`"${form.title}" is now published.`);
-    }
-    closeForm();
+    const body = JSON.stringify({
+      Title: form.title.trim(),
+      Description: form.description.trim(),
+      DateTime: new Date(form.dateTime).toISOString(),
+      Duration: form.duration.trim(),
+      Venue: form.venue.trim(),
+    });
+    const ok = await run(
+      () => api(editingId ? `/events/${editingId}` : "/events", { method: editingId ? "PUT" : "POST", body }),
+      editingId ? `"${form.title.trim()}" was updated.` : `"${form.title.trim()}" is now published.`
+    );
+    if (ok) closeForm();
   }
 
-  const setStatus = (ev, status, text) => {
-    update("events", (list) => list.map((x) => (x.id === ev.id ? { ...x, status } : x)));
-    setMessage(`"${ev.title}" ${text}.`);
-  };
+  const setStatus = (ev, Status, text) =>
+    run(
+      () => api(`/events/${ev.id}`, { method: "PATCH", body: JSON.stringify({ Status }) }),
+      `"${ev.title}" ${text}.`
+    );
 
   const remove = (ev) => {
-    update("events", (list) => list.filter((x) => x.id !== ev.id));
-    update("registrations", (list) => list.filter((r) => r.eventId !== ev.id));
+    if (!window.confirm(`Delete "${ev.title}"? Its registrations will be removed too.`)) return;
     if (editingId === ev.id) closeForm();
-    setMessage(`"${ev.title}" was deleted.`);
+    return run(() => api(`/events/${ev.id}`, { method: "DELETE" }), `"${ev.title}" was deleted.`);
   };
 
   return (
@@ -93,20 +155,22 @@ export default function StaffEventsPage() {
         }
       />
       {message && <Notice>{message}</Notice>}
+      {error && <Notice tone="red">{error}</Notice>}
 
       {showForm && (
         <Card title={editingId ? "Edit event" : "New event"} icon={CalendarDays} className="mb-6">
           <form onSubmit={submit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {error && <div className="md:col-span-2"><Notice tone="red">{error}</Notice></div>}
-            <Field label="Title" required><input className={inputCls} value={form.title} onChange={set("title")} /></Field>
-            <Field label="Venue" required><input className={inputCls} value={form.venue} onChange={set("venue")} /></Field>
+            <Field label="Title" required><input className={inputCls} value={form.title} onChange={set("title")} maxLength={200} /></Field>
+            <Field label="Venue" required><input className={inputCls} value={form.venue} onChange={set("venue")} maxLength={200} /></Field>
             <Field label="Date and time" required><input type="datetime-local" className={inputCls} value={form.dateTime} onChange={set("dateTime")} /></Field>
-            <Field label="Duration"><input className={inputCls} placeholder="e.g. 2 hours" value={form.duration} onChange={set("duration")} /></Field>
+            <Field label="Duration"><input className={inputCls} placeholder="e.g. 2 hours" value={form.duration} onChange={set("duration")} maxLength={50} /></Field>
             <div className="md:col-span-2">
               <Field label="Description"><textarea rows={3} className={inputCls} value={form.description} onChange={set("description")} /></Field>
             </div>
             <div className="flex gap-3 md:col-span-2">
-              <button type="submit" className={btnPrimary}>{editingId ? "Save changes" : "Publish event"}</button>
+              <button type="submit" disabled={busy} className={btnPrimary}>
+                {busy ? "Saving..." : editingId ? "Save changes" : "Publish event"}
+              </button>
               <button type="button" onClick={closeForm} className={btnOutline}>Cancel</button>
             </div>
           </form>
@@ -128,7 +192,7 @@ export default function StaffEventsPage() {
       </div>
 
       {shown.length === 0 ? (
-        <Card><EmptyState message="No events in this category." /></Card>
+        <Card><EmptyState message={loaded ? "No events in this category." : "Loading..."} /></Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {shown.map((e) => {
@@ -141,19 +205,26 @@ export default function StaffEventsPage() {
                 </div>
                 {e.description && <p className="mt-2 text-sm text-text">{e.description}</p>}
                 <div className="mt-3 space-y-1 text-xs text-muted">
-                  <p className="flex items-center gap-1"><CalendarDays size={12} /> {formatDateTime(e.dateTime)}</p>
+                  <p className="flex items-center gap-1"><CalendarDays size={12} /> {fmtDateTime(e.dateTime)}</p>
                   {e.duration && <p className="flex items-center gap-1"><Clock size={12} /> {e.duration}</p>}
-                  <p className="flex items-center gap-1"><MapPin size={12} /> {e.venue}</p>
+                  {e.venue && <p className="flex items-center gap-1"><MapPin size={12} /> {e.venue}</p>}
+                  <p className="flex items-center gap-1">
+                    <Users size={12} /> {e.registrations} registered · posted by {e.postedBy}
+                  </p>
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
                   <button onClick={() => openEdit(e)} className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
                     <Pencil size={14} /> Edit
                   </button>
                   {state === "Upcoming" && (
-                    <button onClick={() => setStatus(e, "Cancelled", "was cancelled")} className="font-medium text-warning hover:underline">Cancel event</button>
+                    <button onClick={() => setStatus(e, "Cancelled", "was cancelled")} className="font-medium text-warning hover:underline">
+                      Cancel event
+                    </button>
                   )}
                   {state === "Cancelled" && (
-                    <button onClick={() => setStatus(e, "Published", "was restored")} className="font-medium text-success hover:underline">Restore</button>
+                    <button onClick={() => setStatus(e, "Published", "was restored")} className="font-medium text-success hover:underline">
+                      Restore
+                    </button>
                   )}
                   <button onClick={() => remove(e)} className="inline-flex items-center gap-1 text-danger hover:underline">
                     <Trash2 size={14} /> Delete

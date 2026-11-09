@@ -16,6 +16,7 @@ model alumni {
   ExpertiseArea          String?              @db.VarChar(255)
   MentorshipAvailable    Boolean              @default(false)
   IsProfilePublic        Boolean              @default(true)
+  ProofDocument          String?              @db.VarChar(255)
   programme              programme            @relation(fields: [ProgrammeID], references: [ProgrammeID], map: "fk_alumni_programme")
   user                   user                 @relation(fields: [UserID], references: [UserID], onDelete: Cascade, map: "fk_alumni_user")
   career_history         career_history[]
@@ -238,7 +239,9 @@ model user {
   AccountStatus      String               @default("Pending") @db.VarChar(20)
   CreatedAt          DateTime?            @default(now()) @db.DateTime(0)
   RejectionReason    String?              @db.VarChar(250)
+  ProfilePhoto       String?              @db.VarChar(255)
   alumni             alumni?
+  announcement       announcement[]
   event              event[]
   event_registration event_registration[]
   funding_initiative funding_initiative[]
@@ -284,4 +287,17 @@ model pledge {
 
   @@index([AlumniID], map: "fk_pledge_alumni")
   @@index([InitiativeID, Status], map: "idx_pledge_initiative_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model announcement {
+  AnnouncementID Int      @id @default(autoincrement()) @db.UnsignedInt
+  CreatorID      Int      @db.UnsignedInt
+  Title          String   @db.VarChar(150)
+  Message        String   @db.Text
+  Audience       String   @default("All") @db.VarChar(20)
+  CreatedAt      DateTime @default(now()) @db.DateTime(0)
+  user           user     @relation(fields: [CreatorID], references: [UserID], map: "fk_announcement_creator")
+
+  @@index([CreatorID], map: "fk_announcement_creator")
 }

@@ -165,7 +165,7 @@ exports.getMyProfile = async (req, res, next) => {
         ExpertiseArea: true,
         MentorshipAvailable: true,
         IsProfilePublic: true,
-        user: { select: { Name: true, AccountStatus: true } }, // no Email, no Password
+        user: { select: { Name: true, AccountStatus: true, ProfilePhoto: true } }, // no Email, no Password
         programme: {
           select: { ProgrammeID: true, ProgrammeName: true, department: { select: { DepartmentName: true } } },
         },
@@ -320,7 +320,7 @@ exports.listAlumni = async (req, res, next) => {
       where.MentorshipAvailable = q.mentorshipAvailable === "true";
     }
 
-        if (q.search !== undefined) {
+    if (q.search !== undefined) {
       if (typeof q.search !== "string" || q.search.trim().length > 100) {
         return res.status(400).json({ message: "search must be text of at most 100 characters" });
       }
@@ -332,7 +332,7 @@ exports.listAlumni = async (req, res, next) => {
 
     // Pagination
     const page = q.page === undefined ? 1 : parseId(q.page);
-        if (!page || page > 100000) return res.status(400).json({ message: "page must be a whole number from 1 to 100000" });
+    if (!page || page > 100000) return res.status(400).json({ message: "page must be a whole number from 1 to 100000" });
     const limit = q.limit === undefined ? 20 : parseId(q.limit);
     if (!limit || limit > 50) return res.status(400).json({ message: "limit must be between 1 and 50" });
 

@@ -1,8 +1,8 @@
-
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const prisma = require("../lib/prisma");
+const { saveProof, removeProof } = require("../lib/proofStorage");
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -14,11 +14,12 @@ const TAB_ROLES = {
 };
 
 exports.register = async (req, res, next) => {
+  let savedProof = null; // name of the proof file, so it can be deleted if registration fails
   try {
     const b = req.body || {};
-    const name = (b.fullName || "").trim();
-    const email = (b.email || "").trim().toLowerCase();
-    const password = b.password || "";
+    const name = String(b.fullName || "").trim();
+    const email = String(b.email || "").trim().toLowerCase();
+    const password = String(b.password || "");
     const programmeId = Number(b.programmeId);
 
     if (name.length < 2 || name.length > 50) {
@@ -135,6 +136,13 @@ exports.register = async (req, res, next) => {
         });
       }
 
+      // Proof of graduation is required: it is what staff check against the registry
+      try {
+        savedProof = await saveProof(req.file);
+      } catch (e) {
+        return res.status(400).json({ message: e.message });
+      }
+
       data = {
         RoleID: role.RoleID,
         Username: "alumni-" + crypto.randomBytes(4).toString("hex"),
@@ -146,6 +154,7 @@ exports.register = async (req, res, next) => {
           create: {
             ProgrammeID: programmeId,
             GraduationYear: graduationYear,
+            ProofDocument: savedProof,
           },
         },
       };
@@ -169,6 +178,8 @@ exports.register = async (req, res, next) => {
       },
     });
   } catch (err) {
+    if (savedProof) await removeProof(savedProof); // don't leave an orphan file behind
+
     if (err.code === "P2002") {
       return res.status(409).json({
         message: "Email or student ID is already registered",
@@ -222,10 +233,10 @@ exports.login = async (req, res, next) => {
     // Check account status after verifying the password.
     if (user.AccountStatus !== "Active") {
 
-      // Show the administrator's rejection reason.
+      // Show the rejection reason.
       if (user.AccountStatus === "Rejected") {
         return res.status(403).json({
-          message: "Your staff registration was rejected.",
+          message: "Your registration was rejected.",
           rejectionReason:
             user.RejectionReason || "No rejection reason was provided.",
         });

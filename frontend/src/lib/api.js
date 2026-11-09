@@ -7,16 +7,22 @@ export async function api(path, options = {}) {
       ? localStorage.getItem("token")
       : null;
 
+  // Detect FormData so the browser can set the multipart boundary automatically
+  const isFormData =
+    typeof FormData !== "undefined" && options.body instanceof FormData;
+
+  const headers = {
+    ...(!isFormData && { "Content-Type": "application/json" }),
+    ...(token && { Authorization: `Bearer ${token}` }),
+    ...options.headers,
+  };
+
   let res;
 
   try {
     res = await fetch(`${API}${path}`, {
       ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-      },
+      headers,
     });
   } catch {
     throw new Error("Cannot reach the server. Is the backend running?");

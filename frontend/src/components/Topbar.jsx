@@ -4,9 +4,16 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Search, Bell, ChevronDown } from "lucide-react";
+import { api } from "@/lib/api";
+import Avatar from "@/components/Avatar";
 
-const initials = (name) =>
-  name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+// Which endpoint returns the logged-in user's photo, per role
+// (administrators have no photo)
+const PROFILE_ENDPOINT = {
+  Student: "/student/profile",
+  Staff: "/staff/me",
+  Alumni: "/alumni/me",
+};
 
 export default function Topbar({
   role,
@@ -19,20 +26,48 @@ export default function Topbar({
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [user, setUser] = useState({ name: fallbackName, role: role || "Student" });
+  const [user, setUser] = useState({ name: fallbackName, role: role || "Student", photoUrl: "" });
   const unread = unreadCount; // pass the count from the layout (later: /api/notifications)
 
-  // The login page will save { name, role } as "user" in localStorage
   useEffect(() => {
+    let cancelled = false;
+    let effectiveRole = role || "Student";
+
+    // 1. Show what is saved in the browser straight away
     try {
       const stored = JSON.parse(localStorage.getItem("user"));
       if (stored) {
+        effectiveRole = role || stored.role || "Student";
         setUser({
           name: stored.name || fallbackName,
-          role: role || stored.role || "Student",
+          role: effectiveRole,
+          photoUrl: stored.photoUrl || "",
         });
       }
     } catch {}
+
+    // 2. Then ask the server for the real, current name and photo
+    const endpoint = PROFILE_ENDPOINT[effectiveRole];
+    if (endpoint) {
+      api(endpoint)
+        .then((d) => {
+          if (cancelled) return;
+          // Student and staff return name/photoUrl; alumni nests them under user
+          const name = d.name || d.user?.Name;
+          const photo = d.photoUrl ?? d.user?.ProfilePhoto ?? "";
+          setUser((u) => ({ ...u, name: name || u.name, photoUrl: photo || "" }));
+        })
+        .catch(() => {});
+    }
+
+    // 3. Update immediately when a photo is uploaded or removed on a profile page
+    const onPhoto = (e) => setUser((u) => ({ ...u, photoUrl: e.detail || "" }));
+    window.addEventListener("profile-photo-changed", onPhoto);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("profile-photo-changed", onPhoto);
+    };
   }, [role, fallbackName]);
 
   const search = (e) => {
@@ -67,9 +102,7 @@ export default function Topbar({
         </Link>
 
         <div className="flex items-center gap-3 border-l border-gray-200 pl-5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar text-sm font-semibold text-white">
-            {user.name ? initials(user.name) : "?"}
-          </div>
+          <Avatar name={user.name} photoUrl={user.photoUrl} size="h-10 w-10" text="text-sm" />
           <div className="leading-tight">
             {user.name && <p className="text-sm font-medium text-sidebar">{user.name}</p>}
             <p className="text-xs text-muted">{user.role}</p>

@@ -49,6 +49,12 @@ exports.getDashboard = async (req, res) => {
           : 0,
       ]);
 
+      const recentAnnouncements = await prisma.announcement.findMany({
+  where: { Audience: { in: ["All", "Students"] } },
+  orderBy: { CreatedAt: "desc" },
+  take: 3,
+});
+
     res.json({
       profileCompletion,
       upcomingEventsCount: eventsThisMonth,
@@ -66,7 +72,13 @@ exports.getDashboard = async (req, res) => {
         company: o.Organization,
         deadline: o.Deadline,
       })),
-      announcements: [], // no announcement table in the schema yet
+      announcements: recentAnnouncements.map((a) => ({
+  id: a.AnnouncementID,
+  title: a.Title,
+  description: a.Message,
+  date: a.CreatedAt,
+})),
+
     });
   } catch (err) {
     console.error("Dashboard error:", err);

@@ -1,17 +1,27 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useStore } from "@/lib/store";
+import { api } from "@/lib/api";
 import { PageHeader, Card, Badge, EmptyState } from "@/components/ui";
 
-const APP_COLUMNS = [
-  ["Submitted", "Submitted"],
-  ["UnderReview", "Under review"],
-  ["Shortlisted", "Shortlisted"],
-  ["Accepted", "Accepted"],
-  ["Rejected", "Rejected"],
-];
-const oppTones = { Open: "green", Closed: "gray", Draft: "orange", Cancelled: "red" };
+const APP_COLUMNS = ["Under Review", "Shortlisted", "Accepted", "Not Selected"];
+const MENTORSHIP_STATUSES = ["Pending", "Accepted", "Declined"];
+const oppTones = { Open: "green", Filled: "gray" };
+
+const emptyReport = {
+  stats: {
+    activeMentorship: 0,
+    applications: 0,
+    openPostings: 0,
+    upcomingEvents: 0,
+    pendingVerification: 0,
+    verifiedAlumni: 0,
+  },
+  postings: [],
+  mentorshipByStatus: [],
+  eventsByStatus: [],
+};
 
 function Tile({ label, value, caption, href }) {
   return (
@@ -43,42 +53,49 @@ function Breakdown({ rows }) {
 }
 
 export default function StaffReportsPage() {
-  const [mentorship] = useStore("mentorship");
-  const [applications] = useStore("applications");
-  const [opportunities] = useStore("opportunities");
-  const [events] = useStore("events");
-  const [verification] = useStore("verificationRequests");
-  const [alumni] = useStore("alumniDirectory");
+  const [report, setReport] = useState(emptyReport);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState("");
 
-  const now = new Date();
-  const activeMentorship = mentorship.filter((m) => m.status === "Pending").length;
-  const openOpps = opportunities.filter((o) => o.status === "Open").length;
-  const upcoming = events.filter((e) => e.status === "Published" && new Date(e.dateTime) >= now).length;
-  const pendingVerification = verification.filter((v) => v.status === "Pending").length;
+  useEffect(() => {
+    api("/staff/reports")
+      .then((d) => {
+        setReport(d);
+        setLoaded(true);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoaded(true);
+      });
+  }, []);
 
-  const mentorshipRows = ["Pending", "Accepted", "Declined", "Cancelled"].map((s) => [s, mentorship.filter((m) => m.status === s).length]);
-  const eventRows = [
-    ["Upcoming", events.filter((e) => e.status !== "Cancelled" && e.status !== "Completed" && new Date(e.dateTime) >= now).length],
-    ["Completed", events.filter((e) => e.status === "Completed" || (e.status === "Published" && new Date(e.dateTime) < now)).length],
-    ["Cancelled", events.filter((e) => e.status === "Cancelled").length],
+  const { stats, postings, mentorshipByStatus, eventsByStatus } = report;
+
+  // Always show the usual statuses (even at 0), plus anything else the database holds
+  const mentorshipRows = [
+    ...MENTORSHIP_STATUSES.map((s) => [s, mentorshipByStatus.find((m) => m.status === s)?.count || 0]),
+    ...mentorshipByStatus
+      .filter((m) => !MENTORSHIP_STATUSES.includes(m.status))
+      .map((m) => [m.status, m.count]),
   ];
 
   return (
     <div>
       <PageHeader title="Reports" subtitle="A quick view of portal activity." />
+      {error && <p className="mb-4 text-sm text-danger">{error}</p>}
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <Tile label="Active mentorship requests" value={activeMentorship} caption="Waiting for an alumni response" href="/staff/reports" />
-        <Tile label="Applications received" value={applications.length} caption="Across all postings" href="/staff/opportunities" />
-        <Tile label="Open postings" value={openOpps} caption="Accepting applications" href="/staff/opportunities" />
-        <Tile label="Upcoming events" value={upcoming} caption="Published" href="/staff/events" />
-        <Tile label="Awaiting verification" value={pendingVerification} caption="Alumni applications" href="/staff/verification" />
-        <Tile label="Verified alumni" value={alumni.length} caption="In the directory" href="/staff/alumni" />
+        <Tile label="Active mentorship requests" value={stats.activeMentorship} caption="Waiting for an alumni response" href="/staff/reports" />
+        <Tile label="Applications received" value={stats.applications} caption="Across all postings" href="/staff/opportunities" />
+        <Tile label="Open postings" value={stats.openPostings} caption="Accepting applications" href="/staff/opportunities" />
+        <Tile label="Upcoming events" value={stats.upcomingEvents} caption="Published" href="/staff/events" />
+        <Tile label="Awaiting verification" value={stats.pendingVerification} caption="Alumni applications" href="/staff/verification" />
+        <Tile label="Verified alumni" value={stats.verifiedAlumni} caption="In the directory" href="/staff/alumni" />
       </div>
 
       <Card title="Applications per posting" className="mb-6">
-        {opportunities.length === 0 ? (
-          <EmptyState message="No postings yet." />
+        {postings.length === 0 ? (
+          <EmptyState message={loaded ? "No postings yet." : "Loading..."} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -87,23 +104,20 @@ export default function StaffReportsPage() {
                   <th className="pb-2 font-medium">Posting</th>
                   <th className="pb-2 font-medium">Status</th>
                   <th className="pb-2 font-medium">Total</th>
-                  {APP_COLUMNS.map(([, label]) => <th key={label} className="pb-2 font-medium">{label}</th>)}
+                  {APP_COLUMNS.map((label) => <th key={label} className="pb-2 font-medium">{label}</th>)}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {opportunities.map((o) => {
-                  const apps = applications.filter((a) => a.opportunityId === o.id);
-                  return (
-                    <tr key={o.id}>
-                      <td className="py-3 font-medium text-sidebar">{o.title}</td>
-                      <td className="py-3"><Badge tone={oppTones[o.status]}>{o.status}</Badge></td>
-                      <td className="py-3 font-semibold text-sidebar">{apps.length}</td>
-                      {APP_COLUMNS.map(([key, label]) => (
-                        <td key={label} className="py-3 text-text">{apps.filter((a) => a.applicationStatus === key).length}</td>
-                      ))}
-                    </tr>
-                  );
-                })}
+                {postings.map((o) => (
+                  <tr key={o.id}>
+                    <td className="py-3 font-medium text-sidebar">{o.title}</td>
+                    <td className="py-3"><Badge tone={oppTones[o.status] || "gray"}>{o.status}</Badge></td>
+                    <td className="py-3 font-semibold text-sidebar">{o.total}</td>
+                    {APP_COLUMNS.map((label) => (
+                      <td key={label} className="py-3 text-text">{o.byStatus[label] || 0}</td>
+                    ))}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -112,7 +126,9 @@ export default function StaffReportsPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card title="Mentorship requests by status"><Breakdown rows={mentorshipRows} /></Card>
-        <Card title="Events by status"><Breakdown rows={eventRows} /></Card>
+        <Card title="Events by status">
+          <Breakdown rows={eventsByStatus.map((e) => [e.status, e.count])} />
+        </Card>
       </div>
     </div>
   );

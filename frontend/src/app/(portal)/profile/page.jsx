@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import AvatarUpload from "@/components/AvatarUpload";
 import {
   Pencil,
   X,
@@ -31,6 +32,7 @@ const emptyProfile = {
   email: "",
   role: "Student",
   accountStatus: "",
+  photoUrl: "",
   studentId: "",
   programme: "",
   joinYear: "",
@@ -242,15 +244,17 @@ export default function ProfilePage() {
 
   return (
     <div>
-
-            {/* Header card */}
+      {/* Header card */}
       <div className="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <div className="h-32 bg-linear-to-r from-sidebar to-primary" />
         <div className="px-6 pb-6">
           <div className="-mt-14 flex flex-wrap items-start gap-6">
-            <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-full border-4 border-white bg-sidebar text-3xl font-semibold text-white shadow">
-              {profile.name ? initials(profile.name) : "?"}
-            </div>
+            <AvatarUpload
+              name={profile.name}
+              photoUrl={profile.photoUrl}
+              onChange={(url) => setProfile({ ...profile, photoUrl: url })}
+              className="border-4 border-white shadow"
+            />
 
             {/* sm:pt-16 pushes the text below the banner */}
             <div className="min-w-64 flex-1 pt-2 sm:pt-16">
@@ -308,8 +312,7 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
-      
-               
+
       {/* Tabs */}
       <div className="mb-6 flex gap-3">
         {[

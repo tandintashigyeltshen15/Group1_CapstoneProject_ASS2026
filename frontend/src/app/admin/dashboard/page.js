@@ -1,13 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { api } from "@/lib/api";
 import {
-  ArrowUp, ArrowRight, UserCheck, HandHeart, CalendarDays, Bell, Flag, Briefcase, MapPin, Clock,
+  ArrowRight, UserCheck, ShieldCheck, Send, FileText, Bell, MapPin, Clock,
 } from "lucide-react";
-import { useStore, formatDate } from "@/lib/store";
-import { Card, Badge, EmptyState } from "@/components/ui";
-import { Avatar, Table, nu, statusTone } from "@/components/AdminUI";
+import { Card, EmptyState } from "@/components/ui";
+import { Avatar, Table } from "@/components/AdminUI";
+
+const seriesColor = {
+  users: "#2563EB",
+  applications: "#7C3AED",
+  mentorship: "#F79009",
+  registrations: "#12B76A",
+};
+
+const fmtDate = (d) =>
+  d
+    ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+    : "-";
+
+const emptyData = {
+  stats: {
+    totalAlumni: 0,
+    totalStudents: 0,
+    activeMentors: 0,
+    openInternships: 0,
+    upcomingEvents: 0,
+    pendingAlumni: 0,
+    pendingStaff: 0,
+    pendingMentorship: 0,
+    applications: 0,
+    unreadNotifications: 0,
+  },
+  activity: { labels: [], series: [] },
+  recentContributions: [],
+  upcomingEventList: [],
+};
 
 function ViewAll({ href }) {
   return (
@@ -17,7 +47,7 @@ function ViewAll({ href }) {
   );
 }
 
-function Kpi({ label, value, growth, href }) {
+function Kpi({ label, value, href }) {
   return (
     <Link
       href={href}
@@ -25,9 +55,6 @@ function Kpi({ label, value, growth, href }) {
     >
       <p className="text-sm font-medium text-sidebar">{label}</p>
       <p className="mt-1 text-2xl font-bold text-sidebar">{value}</p>
-      <p className="mt-1 flex items-center gap-1 text-xs font-medium text-success">
-        <ArrowUp size={12} /> {growth}% this month
-      </p>
     </Link>
   );
 }
@@ -37,10 +64,10 @@ function LineChart({ labels, series }) {
   const [hover, setHover] = useState(null);
   const W = 640, H = 240, L = 36, R = 28, T = 12, B = 30;
   const dataMax = Math.max(...series.flatMap((s) => s.values), 0);
-  const max = dataMax === 0 ? 1 : Math.ceil(dataMax / 20) * 20;
+  const max = Math.max(4, Math.ceil(dataMax / 4) * 4); // multiple of 4 so ticks are whole numbers
   const x = (i) => L + (i * (W - L - R)) / (labels.length - 1);
   const y = (v) => T + (1 - v / max) * (H - T - B);
-  const ticks = dataMax === 0 ? [0] : [0, 0.25, 0.5, 0.75, 1].map((t) => Math.round(max * t));
+  const ticks = [0, 1, 2, 3, 4].map((t) => (max / 4) * t);
   const step = (W - L - R) / (labels.length - 1);
 
   return (
@@ -118,46 +145,56 @@ function QuickStat({ icon: Icon, label, value, href }) {
 }
 
 export default function AdminDashboardPage() {
-  const [analytics] = useStore("adminAnalytics");
-  const [contributions] = useStore("adminContributions");
-  const [events] = useStore("adminEvents");
+  const [data, setData] = useState(emptyData);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState("");
 
-  const zeroSeries = analytics.series.map((series) => ({
-    ...series,
-    values: series.values.map(() => 0),
-  }));
+  useEffect(() => {
+    api("/admin/dashboard")
+      .then((d) => {
+        setData(d);
+        setLoaded(true);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoaded(true);
+      });
+  }, []);
 
-  const recent = [...contributions].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
-  const upcoming = events
-    .filter((e) => e.status === "Approved" && new Date(e.dateTime) >= new Date())
-    .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime))
-    .slice(0, 4);
+  const { stats, activity, recentContributions, upcomingEventList } = data;
+  const series = activity.series.map((s) => ({ ...s, color: seriesColor[s.key] }));
 
   return (
     <div>
       <h1 className="text-3xl font-bold text-sidebar">Admin Dashboard</h1>
       <p className="mb-6 text-muted">Welcome back! Here&apos;s what&apos;s happening on the CST Alumni Portal.</p>
 
+      {error && <p className="mb-4 text-sm text-danger">{error}</p>}
+
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <Kpi label="Total Alumni" value={0} growth={0} href="/admin/users" />
-        <Kpi label="Active Mentors" value={0} growth={0} href="/admin/users" />
-        <Kpi label="Total Contributions" value={nu(0)} growth={0} href="/admin/contributions" />
-        <Kpi label="Internships Posted" value={0} growth={0} href="/admin/opportunities" />
-        <Kpi label="Events Created" value={0} growth={0} href="/admin/events" />
+        <Kpi label="Total Alumni" value={stats.totalAlumni} href="/admin/users" />
+        <Kpi label="Total Students" value={stats.totalStudents} href="/admin/users" />
+        <Kpi label="Active Mentors" value={stats.activeMentors} href="/admin/users" />
+        <Kpi label="Open Internships" value={stats.openInternships} href="/admin/opportunities" />
+        <Kpi label="Upcoming Events" value={stats.upcomingEvents} href="/admin/events" />
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-6">
           <Card title="Overview Analytics" action={<span className="text-xs text-muted">Last 7 Days</span>}>
-            <LineChart labels={analytics.labels} series={zeroSeries} />
+            {activity.labels.length > 1 ? (
+              <LineChart labels={activity.labels} series={series} />
+            ) : (
+              <EmptyState message={loaded ? "No activity data." : "Loading..."} />
+            )}
           </Card>
 
-          <Card title="Recent Contributions" action={<ViewAll href="/admin/contributions" />}>
-            {recent.length === 0 ? (
+          <Card title="Recent Alumni Contributions" action={<ViewAll href="/admin/contributions" />}>
+            {recentContributions.length === 0 ? (
               <EmptyState message="No contributions have been recorded yet." />
             ) : (
-              <Table head={["Donor", "Type", "Details", "Date", "Status"]}>
-                {recent.map((c) => (
+              <Table head={["Alumnus", "Type", "Details", "Date"]}>
+                {recentContributions.map((c) => (
                   <tr key={c.id}>
                     <td className="px-3 py-3">
                       <Link href="/admin/contributions" className="flex items-center gap-3 font-medium text-primary hover:underline">
@@ -167,8 +204,7 @@ export default function AdminDashboardPage() {
                     </td>
                     <td className="px-3 py-3 text-text">{c.type}</td>
                     <td className="px-3 py-3 text-text">{c.details}</td>
-                    <td className="whitespace-nowrap px-3 py-3 text-muted">{formatDate(c.date)}</td>
-                    <td className="px-3 py-3"><Badge tone={statusTone[c.status]}>{c.status}</Badge></td>
+                    <td className="whitespace-nowrap px-3 py-3 text-muted">{fmtDate(c.date)}</td>
                   </tr>
                 ))}
               </Table>
@@ -179,21 +215,20 @@ export default function AdminDashboardPage() {
         <div className="space-y-6">
           <Card title="Quick Stats">
             <div className="divide-y divide-gray-100">
-              <QuickStat icon={UserCheck} label="Pending Alumni Approvals" value={0} href="/admin/users" />
-              <QuickStat icon={HandHeart} label="Pending Contribution Verifications" value={0} href="/admin/contributions" />
-              <QuickStat icon={Briefcase} label="Pending Opportunity Approvals" value={0} href="/admin/opportunities" />
-              <QuickStat icon={CalendarDays} label="Pending Event Approvals" value={0} href="/admin/events" />
-              <QuickStat icon={Bell} label="Unread Notifications" value={0} href="/admin/notifications" />
-              <QuickStat icon={Flag} label="Reported Content" value={0} href="/admin/reports" />
+              <QuickStat icon={UserCheck} label="Pending Alumni Approvals" value={stats.pendingAlumni} href="/admin/users" />
+              <QuickStat icon={ShieldCheck} label="Pending Staff Approvals" value={stats.pendingStaff} href="/admin/staff-verification" />
+              <QuickStat icon={Send} label="Pending Mentorship Requests" value={stats.pendingMentorship} href="/admin/reports" />
+              <QuickStat icon={FileText} label="Applications Received" value={stats.applications} href="/admin/opportunities" />
+              <QuickStat icon={Bell} label="Unread Notifications" value={stats.unreadNotifications} href="/admin/notifications" />
             </div>
           </Card>
 
           <Card title="Upcoming Events" action={<ViewAll href="/admin/events" />}>
-            {upcoming.length === 0 ? (
+            {upcomingEventList.length === 0 ? (
               <EmptyState message="No upcoming events." />
             ) : (
               <ul className="divide-y divide-gray-100">
-                {upcoming.map((e) => {
+                {upcomingEventList.map((e) => {
                   const d = new Date(e.dateTime);
                   return (
                     <li key={e.id} className="flex items-center gap-4 py-3">
@@ -203,7 +238,9 @@ export default function AdminDashboardPage() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-sidebar">{e.title}</p>
                         <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
-                          <span className="flex items-center gap-1"><MapPin size={12} /> {e.venue}</span>
+                          {e.venue && (
+                            <span className="flex items-center gap-1"><MapPin size={12} /> {e.venue}</span>
+                          )}
                           <span className="flex items-center gap-1">
                             <Clock size={12} />
                             {d.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit" })}

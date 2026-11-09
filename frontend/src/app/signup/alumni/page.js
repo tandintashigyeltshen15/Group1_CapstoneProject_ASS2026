@@ -69,48 +69,55 @@ export default function AlumniSignupPage() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
+  e.preventDefault();
+  setError("");
+  setFileError("");
 
-    if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
-    }
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-    if (!proofFile) {
-      setFileError("Please upload your proof of graduation.");
-      return;
-    }
-    if (!formData.agreed) {
-      setError("Please agree to the Terms & Conditions.");
-      return;
-    }
+  if (formData.password.length < 8) {
+    setError("Password must be at least 8 characters.");
+    return;
+  }
 
-    setLoading(true);
-    try {
-      // The proof document is NOT sent yet: the backend has nowhere to store it.
-      // It needs a new column for the file URL, an upload package (multer) and file storage.
-      const data = await api("/auth/register", {
-        method: "POST",
-        body: JSON.stringify({
-          role: "ALUMNI",
-          fullName: formData.fullName.trim(),
-          email: formData.email.trim(),
-          password: formData.password,
-          programmeId: Number(formData.programmeId),
-          graduationYear: Number(formData.graduationYear),
-        }),
-      });
-      setSuccess(data.message);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (formData.password !== formData.confirmPassword) {
+    setError("Passwords do not match.");
+    return;
+  }
+
+  if (!proofFile) {
+    setFileError("Please upload your proof of graduation.");
+    return;
+  }
+
+  if (!formData.agreed) {
+    setError("Please agree to the Terms & Conditions.");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const data = new FormData();
+
+    data.append("role", "ALUMNI");
+    data.append("fullName", formData.fullName.trim());
+    data.append("email", formData.email.trim());
+    data.append("password", formData.password);
+    data.append("programmeId", String(Number(formData.programmeId)));
+    data.append("graduationYear", String(Number(formData.graduationYear)));
+    data.append("proof", proofFile);
+
+    const response = await api("/auth/register", {
+      method: "POST",
+      body: data,
+    });
+
+    setSuccess(response.message);
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYear - i);

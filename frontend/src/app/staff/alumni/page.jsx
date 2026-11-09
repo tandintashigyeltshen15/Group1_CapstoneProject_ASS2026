@@ -1,59 +1,101 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, Mail, Briefcase, MapPin, GraduationCap, Pencil } from "lucide-react";
-import { useStore, update } from "@/lib/store";
+import { api } from "@/lib/api";
+import { Search, Mail, Briefcase, GraduationCap, Pencil } from "lucide-react";
 import { PageHeader, Card, Badge, Field, Toggle, EmptyState, Notice, inputCls, btnPrimary, btnOutline } from "@/components/ui";
 
 const unique = (arr) => [...new Set(arr.filter(Boolean))].sort();
 
 function Directory({ initialSearch }) {
-  const [alumni] = useStore("alumniDirectory");
+  const [alumni, setAlumni] = useState([]);
+  const [programmes, setProgrammes] = useState([]);
+  const [loaded, setLoaded] = useState(false);
   const [query, setQuery] = useState(initialSearch);
   const [programme, setProgramme] = useState("All");
   const [year, setYear] = useState("All");
-  const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const programmes = unique(alumni.map((a) => a.programme));
+  const load = () =>
+    api("/staff/alumni")
+      .then((d) => {
+        setAlumni(d.alumni);
+        setProgrammes(d.programmes);
+        setLoaded(true);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoaded(true);
+      });
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const programmeNames = unique(alumni.map((a) => a.programme));
   const years = unique(alumni.map((a) => String(a.graduationYear))).reverse();
   const q = query.trim().toLowerCase();
   const shown = alumni.filter(
     (a) =>
       (programme === "All" || a.programme === programme) &&
       (year === "All" || String(a.graduationYear) === year) &&
-      (!q || [a.name, a.jobTitle, a.company, a.expertise, a.location].some((v) => (v ?? "").toLowerCase().includes(q)))
+      (!q || [a.name, a.jobTitle, a.company, a.expertise].some((v) => (v ?? "").toLowerCase().includes(q)))
   );
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
   function startEdit(a) {
-    setEditingId(a.id);
-    setForm({ ...a, graduationYear: String(a.graduationYear) });
+    setForm({
+      id: a.id,
+      name: a.name,
+      programmeId: String(a.programmeId),
+      graduationYear: String(a.graduationYear),
+      expertise: a.expertise,
+      bio: a.bio,
+      isMentor: a.isMentor,
+    });
     setError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function cancelEdit() {
-    setEditingId(null);
     setForm(null);
     setError("");
   }
 
-  function save(e) {
+  async function save(e) {
     e.preventDefault();
     const y = Number(form.graduationYear);
-    if (!form.name.trim() || !form.email.trim()) return setError("Name and email are required.");
-    if (!/^\S+@\S+\.\S+$/.test(form.email)) return setError("Enter a valid email address.");
-    if (!Number.isInteger(y) || y < 1980 || y > new Date().getFullYear()) return setError("Enter a valid graduation year.");
-    update("alumniDirectory", (list) =>
-      list.map((a) => (a.id === editingId ? { ...form, graduationYear: y, name: form.name.trim(), email: form.email.trim() } : a))
-    );
-    setMessage(`${form.name.trim()}'s record was updated.`);
-    cancelEdit();
+    if (!form.name.trim()) return setError("Name is required.");
+    if (!Number.isInteger(y) || y < 1980 || y > new Date().getFullYear()) {
+      return setError("Enter a valid graduation year.");
+    }
+    setError("");
+    setSaving(true);
+    try {
+      await api(`/staff/alumni/${form.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          name: form.name,
+          programmeId: Number(form.programmeId),
+          graduationYear: y,
+          expertise: form.expertise,
+          bio: form.bio,
+          isMentor: form.isMentor,
+        }),
+      });
+      setMessage(`${form.name.trim()}'s record was updated.`);
+      setForm(null);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -63,27 +105,31 @@ function Directory({ initialSearch }) {
         subtitle="Search and view alumni academic and professional information, and correct records when needed."
       />
       {message && <Notice>{message}</Notice>}
+      {error && !form && <Notice tone="red">{error}</Notice>}
 
       {form && (
         <Card title={`Edit ${form.name || "alumni record"}`} icon={Pencil} className="mb-6">
           <form onSubmit={save} noValidate className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {error && <div className="md:col-span-2"><Notice tone="red">{error}</Notice></div>}
-            <Field label="Full name" required><input className={inputCls} value={form.name} onChange={set("name")} /></Field>
-            <Field label="Email" required><input type="email" className={inputCls} value={form.email} onChange={set("email")} /></Field>
-            <Field label="Programme"><input className={inputCls} value={form.programme} onChange={set("programme")} /></Field>
+            <Field label="Full name" required><input className={inputCls} value={form.name} onChange={set("name")} maxLength={50} /></Field>
+            <Field label="Programme">
+              <select className={inputCls} value={form.programmeId} onChange={set("programmeId")}>
+                {programmes.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </Field>
             <Field label="Graduation year"><input type="number" className={inputCls} value={form.graduationYear} onChange={set("graduationYear")} /></Field>
-            <Field label="Job title"><input className={inputCls} value={form.jobTitle} onChange={set("jobTitle")} /></Field>
-            <Field label="Company"><input className={inputCls} value={form.company} onChange={set("company")} /></Field>
-            <Field label="Location"><input className={inputCls} value={form.location} onChange={set("location")} /></Field>
-            <Field label="Area of expertise"><input className={inputCls} value={form.expertise} onChange={set("expertise")} /></Field>
+            <Field label="Area of expertise"><input className={inputCls} value={form.expertise} onChange={set("expertise")} maxLength={255} /></Field>
             <div className="md:col-span-2">
-              <Field label="Bio"><textarea rows={2} className={inputCls} value={form.bio} onChange={set("bio")} /></Field>
+              <Field label="Professional background"><textarea rows={2} className={inputCls} value={form.bio} onChange={set("bio")} /></Field>
             </div>
             <div className="md:col-span-2">
               <Toggle checked={form.isMentor} onChange={(v) => setForm({ ...form, isMentor: v })} label="Available as a mentor" />
             </div>
+            <p className="text-xs text-muted md:col-span-2">
+              Email and job history belong to the alumnus and can only be changed by them.
+            </p>
             <div className="flex gap-3 md:col-span-2">
-              <button type="submit" className={btnPrimary}>Save changes</button>
+              <button type="submit" disabled={saving} className={btnPrimary}>{saving ? "Saving..." : "Save changes"}</button>
               <button type="button" onClick={cancelEdit} className={btnOutline}>Cancel</button>
             </div>
           </form>
@@ -97,13 +143,13 @@ function Directory({ initialSearch }) {
             aria-label="Search alumni"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by name, job, company, expertise or location"
+            placeholder="Search by name, job, company or expertise"
             className={inputCls + " !pl-9"}
           />
         </div>
         <select aria-label="Filter by programme" className={inputCls + " md:!w-auto"} value={programme} onChange={(e) => setProgramme(e.target.value)}>
           <option value="All">All programmes</option>
-          {programmes.map((p) => <option key={p} value={p}>{p}</option>)}
+          {programmeNames.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
         <select aria-label="Filter by graduation year" className={inputCls + " md:!w-auto"} value={year} onChange={(e) => setYear(e.target.value)}>
           <option value="All">All years</option>
@@ -113,7 +159,11 @@ function Directory({ initialSearch }) {
       <p className="mb-4 text-sm text-muted">Showing {shown.length} of {alumni.length} alumni</p>
 
       {shown.length === 0 ? (
-        <Card><EmptyState message="No alumni match your search." /></Card>
+        <Card>
+          <EmptyState
+            message={!loaded ? "Loading..." : alumni.length === 0 ? "No verified alumni yet." : "No alumni match your search."}
+          />
+        </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {shown.map((a) => (
@@ -125,7 +175,10 @@ function Directory({ initialSearch }) {
                     <GraduationCap size={14} /> {a.programme}, class of {a.graduationYear}
                   </p>
                 </div>
-                {a.isMentor && <Badge tone="green">Mentor</Badge>}
+                <div className="flex gap-2">
+                  {!a.isPublic && <Badge tone="gray">Private</Badge>}
+                  {a.isMentor && <Badge tone="green">Mentor</Badge>}
+                </div>
               </div>
               <div className="mt-3 space-y-1 text-sm text-text">
                 {(a.jobTitle || a.company) && (
@@ -134,7 +187,6 @@ function Directory({ initialSearch }) {
                     {[a.jobTitle, a.company].filter(Boolean).join(" at ")}
                   </p>
                 )}
-                {a.location && <p className="flex items-center gap-2"><MapPin size={14} className="text-muted" /> {a.location}</p>}
                 <p className="flex items-center gap-2"><Mail size={14} className="text-muted" /> {a.email}</p>
                 {a.expertise && <p className="text-xs text-muted">Expertise: {a.expertise}</p>}
                 {a.bio && <p className="text-xs text-muted">{a.bio}</p>}
@@ -151,7 +203,6 @@ function Directory({ initialSearch }) {
 }
 
 // The top-bar search sends staff here as /staff/alumni?search=...
-// Keying on the search text re-starts the page with that text filled in.
 function SearchAwareDirectory() {
   const search = useSearchParams().get("search") ?? "";
   return <Directory key={search} initialSearch={search} />;
