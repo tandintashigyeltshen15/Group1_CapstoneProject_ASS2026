@@ -12,6 +12,7 @@ export default function RoleSelectionPage() {
         alt="CST Campus"
         fill
         priority
+        sizes="100vw"
         className="z-0 object-cover"
       />
       <div aria-hidden="true" className="absolute inset-0 z-10 bg-accent/15" />
@@ -19,7 +20,7 @@ export default function RoleSelectionPage() {
       {/* Content */}
       <div className="relative z-20 p-10">
         <div className="flex items-center gap-3 mb-10">
-          <Image src="/cst-logo.png" alt="CST Logo" width={48} height={48} />
+          <Image src="/cst-logo.png" alt="CST Logo" width={48} height={48} style={{ width: 48, height: "auto" }} />
           <h1 className="text-lg font-bold">CST ALUMNI PORTAL</h1>
         </div>
 

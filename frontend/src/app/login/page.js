@@ -28,7 +28,11 @@ const roles = {
       type: "text",
       icon: User,
     },
-    footer: { text: "Don't have an account?", link: "Register here", href: "/signup/student" },
+    footer: {
+      text: "Don't have an account?",
+      link: "Register here",
+      href: "/signup/student",
+    },
   },
   alumni: {
     label: "Alumni",
@@ -41,7 +45,11 @@ const roles = {
       type: "email",
       icon: Mail,
     },
-    footer: { text: "Don't have an account?", link: "Register here", href: "/signup/alumni" },
+    footer: {
+      text: "Don't have an account?",
+      link: "Register here",
+      href: "/signup/alumni",
+    },
   },
   staff: {
     label: "Staff",
@@ -54,7 +62,11 @@ const roles = {
       type: "text",
       icon: User,
     },
-    footer: { text: "Don't have an account?", link: "Contact your administrator", href: null },
+    footer: {
+      text: "Don't have an account?",
+      link: "Contact your administrator",
+      href: null,
+    },
   },
   admin: {
     label: "Admin",
@@ -102,7 +114,7 @@ function LoginForm() {
 
     // TODO (backend phase): POST /api/auth/login with { role: roleKey, identifier, password }
     // On success: save "token" and "user" in localStorage, then redirect by role:
-    //   student -> /dashboard, alumni -> /alumni/dashboard, staff/admin -> /admin/dashboard
+    // student -> /dashboard, alumni -> /alumni/dashboard, staff/admin -> /admin/dashboard
     // "Remember me" should decide how long the login lasts. It does nothing yet.
     console.log("Login attempt:", { role: roleKey, identifier, remember });
   };
@@ -114,22 +126,38 @@ function LoginForm() {
         <div className="relative hidden w-[42%] shrink-0 flex-col bg-sidebar text-white md:flex">
           <div className="relative z-10 px-10 pt-12">
             <h2 className="text-3xl font-bold">Welcome Back!</h2>
+
             <p className="mt-5 text-lg leading-snug text-white/90">
               Log in to continue your
               <br />
               {role.journey}
             </p>
-            <p className="mt-5 text-sm text-white/80">{role.tags.join("  •  ")}</p>
+
+            <p className="mt-5 text-sm text-white/80">
+              {role.tags.join("  •  ")}
+            </p>
           </div>
 
-          {/* Campus photo (put campus.jpg in public/). If it is missing you just see the dark panel. */}
-          <div
-            className="mt-auto h-64 w-full bg-cover bg-center"
-            style={{
-              backgroundImage: "url('/campus.jpg')",
-              clipPath: "ellipse(80% 70% at 50% 100%)",
-            }}
-          />
+          {/* Campus photo with wave-shaped edge */}
+          <div className="relative mt-auto h-64 w-full">
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: "url('/campus.jpg')" }}
+            />
+
+            {/* Wave edge on top of the photo */}
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 315 70"
+              preserveAspectRatio="none"
+              className="absolute -top-px left-0 h-17.5 w-full text-sidebar"
+            >
+              <path
+                d="M0 0H315V18C270 -4 235 4 195 28C150 54 95 62 50 44C30 36 12 36 0 42Z"
+                fill="currentColor"
+              />
+            </svg>
+          </div>
         </div>
 
         {/* Right: form */}
@@ -138,8 +166,15 @@ function LoginForm() {
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-primary">
               <RoleIcon size={28} />
             </div>
-            <h1 className="text-xl font-bold tracking-wide text-sidebar">CST ALUMNI PORTAL</h1>
-            <p className="mt-1 font-semibold text-sidebar">{role.label} Login</p>
+
+            <h1 className="text-xl font-bold tracking-wide text-sidebar">
+              CST ALUMNI PORTAL
+            </h1>
+
+            <p className="mt-1 font-semibold text-sidebar">
+              {role.label} Login
+            </p>
+
             <p className="text-xs text-muted">Connect. Learn. Grow.</p>
           </div>
 
@@ -147,11 +182,13 @@ function LoginForm() {
             <label className="mb-1.5 block text-xs font-medium text-sidebar">
               {role.field.label}
             </label>
+
             <div className="relative">
               <FieldIcon
                 size={18}
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9AA6BC]"
               />
+
               <input
                 type={role.field.type}
                 value={identifier}
@@ -165,12 +202,16 @@ function LoginForm() {
           </div>
 
           <div className="mb-3">
-            <label className="mb-1.5 block text-xs font-medium text-sidebar">Password</label>
+            <label className="mb-1.5 block text-xs font-medium text-sidebar">
+              Password
+            </label>
+
             <div className="relative">
               <Lock
                 size={18}
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9AA6BC]"
               />
+
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
@@ -180,6 +221,7 @@ function LoginForm() {
                 required
                 className={`${inputClass} pr-11`}
               />
+
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
@@ -201,7 +243,11 @@ function LoginForm() {
               />
               Remember me
             </label>
-            <Link href="/forgot-password" className="font-medium text-primary hover:underline">
+
+            <Link
+              href="/forgot-password"
+              className="font-medium text-primary hover:underline"
+            >
               Forgot Password?
             </Link>
           </div>
@@ -218,11 +264,16 @@ function LoginForm() {
           <p className="mt-5 text-center text-xs text-muted">
             {role.footer.text}{" "}
             {role.footer.href ? (
-              <Link href={role.footer.href} className="font-medium text-primary hover:underline">
+              <Link
+                href={role.footer.href}
+                className="font-medium text-primary hover:underline"
+              >
                 {role.footer.link}
               </Link>
             ) : (
-              <span className="font-medium text-primary">{role.footer.link}</span>
+              <span className="font-medium text-primary">
+                {role.footer.link}
+              </span>
             )}
           </p>
 

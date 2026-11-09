@@ -83,7 +83,7 @@ const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYe
       {/* Header */}
       <div className="flex justify-between items-center px-10 pt-8 pb-4 max-w-6xl mx-auto">
         <div className="flex items-center gap-3">
-          <Image src="/cst-logo.png" alt="CST Logo" width={44} height={44} />
+          <Image src="/cst-logo.png" alt="CST Logo" width={44} height={44} style={{ width: 44, height: "auto" }} />
           <span className="text-[17px] font-bold text-[#192B50] leading-tight">
             CST ALUMNI<br />PORTAL
           </span>
@@ -118,11 +118,20 @@ const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYe
             </div>
 
             {/* Curved campus photo (needs public/campus.jpg) */}
-            <div
-              className="relative h-56 w-full"
-              style={{ clipPath: "ellipse(70% 55% at 50% 100%)" }}
-            >
-              <Image src="/campus.jpg" alt="CST Campus" fill className="object-cover" />
+            <div className="relative h-60 w-full">
+              <Image src="/campus.jpg" alt="CST Campus" fill sizes="315px" className="object-cover" />
+              {/* Wave edge on top of the photo */}
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 315 70"
+                preserveAspectRatio="none"
+                className="absolute -top-px left-0 h-[70px] w-full"
+              >
+                <path
+                  d="M0 0H315V18C270 -4 235 4 195 28C150 54 95 62 50 44C30 36 12 36 0 42Z"
+                  fill="#071D3B"
+                />
+              </svg>
             </div>
             <div className="absolute inset-0 -z-10 bg-[#071D3B]" />
           </div>

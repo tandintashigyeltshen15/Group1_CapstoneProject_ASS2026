@@ -61,7 +61,7 @@ export default function StudentSignupPage() {
       {/* Header */}
       <div className="flex justify-between items-center px-10 pt-8 pb-4 max-w-6xl mx-auto">
         <div className="flex items-center gap-3">
-          <Image src="/cst-logo.png" alt="CST Logo" width={44} height={44} />
+          <Image src="/cst-logo.png" alt="CST Logo" width={44} height={44} style={{ width: 44, height: "auto" }} />
           <span className="text-[17px] font-bold text-[#192B50] leading-tight">
             CST ALUMNI<br />PORTAL
           </span>
@@ -83,15 +83,35 @@ export default function StudentSignupPage() {
       <div className="max-w-6xl mx-auto px-10 pb-16">
         <div className="flex border border-gray-300 rounded-2xl overflow-hidden">
           {/* Left panel */}
-          <div className="w-[315px] shrink-0 bg-[#071D3B] text-white flex flex-col items-center justify-center text-center px-8 py-10">
-            <div className="bg-[#0D2A55] rounded-full w-20 h-20 flex items-center justify-center mb-5">
-              <GraduationCap className="text-[#2563EB]" size={34} strokeWidth={1.75} />
+          <div className="relative w-78.75 shrink-0 bg-[#071D3B] text-white flex flex-col">
+            <div className="flex-1 flex flex-col items-center justify-center text-center px-8 pt-10 relative z-10">
+              <div className="bg-[#0D2A55] rounded-full w-20 h-20 flex items-center justify-center mb-5">
+                <GraduationCap className="text-[#2563EB]" size={34} strokeWidth={1.75} />
+              </div>
+              <h2 className="text-xl font-bold mb-1">Student Registration</h2>
+              <p className="text-sm text-gray-300 mb-8">Create your student account</p>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Your information is secure<br />and used only for CST services.
+              </p>
             </div>
-            <h2 className="text-xl font-bold mb-1">Student Registration</h2>
-            <p className="text-sm text-gray-300 mb-8">Create your student account</p>
-            <p className="text-xs text-gray-400 leading-relaxed">
-              Your information is secure<br />and used only for CST services.
-            </p>
+
+            {/* Curved campus photo (needs public/campus.jpg) */}
+            <div className="relative h-60 w-full">
+              <Image src="/campus.jpg" alt="CST Campus" fill sizes="315px" className="object-cover" />
+              {/* Wave edge on top of the photo */}
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 315 70"
+                preserveAspectRatio="none"
+                className="absolute -top-px left-0 h-17.5 w-full"
+              >
+                <path
+                  d="M0 0H315V18C270 -4 235 4 195 28C150 54 95 62 50 44C30 36 12 36 0 42Z"
+                  fill="#071D3B"
+                />
+              </svg>
+            </div>
+            <div className="absolute inset-0 -z-10 bg-[#071D3B]" />
           </div>
 
           {/* Right form */}
