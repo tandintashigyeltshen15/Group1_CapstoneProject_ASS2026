@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Eye, EyeOff, User, UploadCloud, FileText, X } from "lucide-react";
+import { Eye, EyeOff, UploadCloud, FileText, X } from "lucide-react";
+import { api } from "@/lib/api";
+import { PROGRAMMES } from "@/lib/catalog";
 
 const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png"];
 const MAX_MB = 5;
@@ -13,22 +15,40 @@ const formatSize = (bytes) =>
     ? `${Math.round(bytes / 1024)} KB`
     : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
+const inputClass =
+  "w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm font-normal text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#078F63]";
+
+const selectClass = (value) =>
+  `w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm font-normal appearance-none bg-white focus:outline-none focus:border-[#078F63] ${
+    value ? "text-[#192B50]" : "text-[#9AA6BC]"
+  }`;
+
 export default function AlumniSignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [proofFile, setProofFile] = useState(null);
   const [fileError, setFileError] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [programmes, setProgrammes] = useState([]);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
     graduationYear: "",
-    department: "",
+    programmeId: "",
     currentDesignation: "",
     password: "",
     confirmPassword: "",
     agreed: false,
   });
+
+  useEffect(() => {
+    api("/catalog/programmes")
+      .then((list) => setProgrammes(Array.isArray(list) && list.length ? list : PROGRAMMES))
+      .catch(() => setProgrammes(PROGRAMMES));
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -49,41 +69,66 @@ export default function AlumniSignupPage() {
     setProofFile(file);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match");
-      return;
-    }
-    if (!proofFile) {
-      setFileError("Please upload your proof of graduation.");
-      return;
-    }
-    if (!formData.agreed) {
-      alert("Please agree to the Terms & Conditions");
-      return;
-    }
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError("");
+  setFileError("");
 
-    // Files are sent as multipart form data, not JSON
-    const body = new FormData();
-    Object.entries(formData).forEach(([key, value]) => {
-      if (key !== "confirmPassword" && key !== "agreed") body.append(key, value);
+  if (formData.password.length < 8) {
+    setError("Password must be at least 8 characters.");
+    return;
+  }
+
+  if (formData.password !== formData.confirmPassword) {
+    setError("Passwords do not match.");
+    return;
+  }
+
+  if (!proofFile) {
+    setFileError("Please upload your proof of graduation.");
+    return;
+  }
+
+  if (!formData.agreed) {
+    setError("Please agree to the Terms & Conditions.");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const data = new FormData();
+
+    data.append("role", "ALUMNI");
+    data.append("fullName", formData.fullName.trim());
+    data.append("email", formData.email.trim());
+    data.append("password", formData.password);
+    data.append("programmeId", String(Number(formData.programmeId)));
+    data.append("graduationYear", String(Number(formData.graduationYear)));
+    data.append("proof", proofFile);
+
+    const response = await api("/auth/register", {
+      method: "POST",
+      body: data,
     });
-    body.append("proof", proofFile);
 
-    // TODO (backend phase): POST /api/auth/register with `body`
-    console.log("Alumni signup:", formData, proofFile.name);
-  };
+    setSuccess(response.message);
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const currentYear = new Date().getFullYear();
-const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYear - i);
+  const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYear - i);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       {/* Header */}
       <div className="flex justify-between items-center px-10 pt-8 pb-4 max-w-6xl mx-auto">
         <div className="flex items-center gap-3">
-          <Image src="/cst-logo.png" alt="CST Logo" width={44} height={44} style={{ width: 44, height: "auto" }} />
+          <Image src="/cst-logo.png" alt="CST Logo" width={44} height={44} />
           <span className="text-[17px] font-bold text-[#192B50] leading-tight">
             CST ALUMNI<br />PORTAL
           </span>
@@ -105,35 +150,38 @@ const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYe
       <div className="max-w-6xl mx-auto px-10 pb-16">
         <div className="flex border border-gray-300 rounded-2xl overflow-hidden">
           {/* Left panel */}
-          <div className="relative w-[315px] shrink-0 bg-[#071D3B] text-white flex flex-col">
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-8 pt-10 relative z-10">
-              <div className="bg-[#0C3A2E] rounded-full w-20 h-20 flex items-center justify-center mb-5">
-                <User className="text-[#12B76A]" size={32} strokeWidth={1.75} />
-              </div>
-              <h2 className="text-xl font-bold mb-1">Alumni Registration</h2>
-              <p className="text-sm text-gray-300 mb-8">Create your alumni account</p>
-              <p className="text-xs text-gray-400 leading-relaxed">
-                Your information is secure<br />and used only for CST services.
+          <div className="relative hidden w-[315px] shrink-0 flex-col bg-sidebar text-white md:flex">
+            <div className="relative z-10 px-10 pt-12">
+              <h2 className="text-3xl font-bold">Alumni Registration</h2>
+              <p className="mt-5 text-lg leading-snug text-white/90">
+                Create your alumni account
+              </p>
+              <p className="mt-5 text-sm text-white/80">
+                Your information is secure
+                <br />
+                and used only for CST services.
               </p>
             </div>
 
-            {/* Curved campus photo (needs public/campus.jpg) */}
-            <div className="relative h-60 w-full">
-              <Image src="/campus.jpg" alt="CST Campus" fill sizes="315px" className="object-cover" />
-              {/* Wave edge on top of the photo */}
+            {/* Campus photo with wave-shaped edge */}
+            <div className="relative mt-auto h-64 w-full">
+              <div
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ backgroundImage: "url('/campus.jpg')" }}
+              />
               <svg
                 aria-hidden="true"
                 viewBox="0 0 315 70"
                 preserveAspectRatio="none"
-                className="absolute -top-px left-0 h-[70px] w-full"
+                className="absolute -top-px left-0 w-full text-sidebar"
+                style={{ height: 70 }}
               >
                 <path
                   d="M0 0H315V18C270 -4 235 4 195 28C150 54 95 62 50 44C30 36 12 36 0 42Z"
-                  fill="#071D3B"
+                  fill="currentColor"
                 />
               </svg>
             </div>
-            <div className="absolute inset-0 -z-10 bg-[#071D3B]" />
           </div>
 
           {/* Right form */}
@@ -145,8 +193,9 @@ const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYe
                 value={formData.fullName}
                 onChange={handleChange}
                 placeholder="Enter your full name"
+                maxLength={50}
                 required
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#078F63]"
+                className={inputClass}
               />
             </Field>
 
@@ -158,7 +207,7 @@ const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYe
                 onChange={handleChange}
                 placeholder="Enter your email address"
                 required
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#078F63]"
+                className={inputClass}
               />
             </Field>
 
@@ -168,33 +217,31 @@ const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYe
                 value={formData.graduationYear}
                 onChange={handleChange}
                 required
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] appearance-none bg-white focus:outline-none focus:border-[#078F63]"
+                className={selectClass(formData.graduationYear)}
               >
                 <option value="">Select your graduation year</option>
                 {years.map((y) => (
-                  <option key={y} value={y}>{y}</option>
+                  <option key={y} value={y} className="text-[#192B50]">
+                    {y}
+                  </option>
                 ))}
               </select>
             </Field>
 
-            <Field label="Department">
+            <Field label="Programme">
               <select
-                name="department"
-                value={formData.department}
+                name="programmeId"
+                value={formData.programmeId}
                 onChange={handleChange}
                 required
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] appearance-none bg-white focus:outline-none focus:border-[#078F63]"
+                className={selectClass(formData.programmeId)}
               >
-                <option value="">Select your department</option>
-                <option value="civil">Civil Engineering</option>
-                <option value="ece">Electronics & Communication Engineering</option>
-                <option value="me">Mechanical Engineering</option>
-                <option value="electrical">Electrical Engineering</option>
-                <option value="it">Information Technology</option>
-                <option value="swe">Software Engineering</option>
-                <option value="water">Water Resource Engineering</option>
-                <option value="arch">Architecture</option>
-                <option value="ice">Instrumental and Control Engineering</option>
+                <option value="">Select your programme</option>
+                {programmes.map((p) => (
+                  <option key={p.id} value={p.id} className="text-[#192B50]">
+                    {p.name}
+                  </option>
+                ))}
               </select>
             </Field>
 
@@ -205,7 +252,7 @@ const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYe
                 value={formData.currentDesignation}
                 onChange={handleChange}
                 placeholder="Enter your current job title"
-                className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#078F63]"
+                className={inputClass}
               />
             </Field>
 
@@ -291,11 +338,12 @@ const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYe
                   onChange={handleChange}
                   placeholder="Create a password"
                   required
-                  className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 pr-11 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#078F63]"
+                  className={`${inputClass} pr-11`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9AA6BC]"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -312,11 +360,12 @@ const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYe
                   onChange={handleChange}
                   placeholder="Confirm your password"
                   required
-                  className="w-full border border-[#D7E0EE] rounded-lg px-4 py-3 pr-11 text-sm text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#078F63]"
+                  className={`${inputClass} pr-11`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirm(!showConfirm)}
+                  aria-label={showConfirm ? "Hide password" : "Show password"}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9AA6BC]"
                 >
                   {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -333,24 +382,36 @@ const years = Array.from({ length: currentYear - 2001 + 1 }, (_, i) => currentYe
                 onChange={handleChange}
                 className="w-4 h-4 accent-[#078F63] border-[#078F63]"
               />
-              <span className="text-sm">
-                <a href="#" className="text-[#192B50] font-medium">Terms &amp; Conditions</a>
-                {"   "}
+              <span className="text-sm text-[#71809D]">
+                I agree to the{" "}
+                <a href="#" className="text-[#192B50] font-medium">Terms &amp; Conditions</a> and{" "}
                 <a href="#" className="text-[#192B50] font-medium">Privacy Policy</a>
               </span>
             </div>
 
+            {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
+
             {/* Submit */}
-            <button
-              type="submit"
-              className="w-full bg-[#078F63] hover:bg-[#067350] text-white py-3.5 rounded-lg text-[15px] font-semibold transition-colors"
-            >
-              Create Alumni Account
-            </button>
+            {success ? (
+              <div className="rounded-lg bg-green-50 p-4 text-sm text-green-700">
+                {success}{" "}
+                <Link href="/login?role=alumni" className="font-semibold underline">
+                  Go to login
+                </Link>
+              </div>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#078F63] hover:bg-[#067350] text-white py-3.5 rounded-lg text-[15px] font-semibold transition-colors disabled:opacity-60"
+              >
+                {loading ? "Creating account..." : "Create Alumni Account"}
+              </button>
+            )}
 
             <p className="text-center text-sm text-[#71809D] mt-5">
               Already have an account?{" "}
-              <Link href="/login" className="text-[#2563EB] font-medium">
+              <Link href="/login?role=alumni" className="text-[#2563EB] font-medium">
                 Login here
               </Link>
             </p>

@@ -1,37 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Eye, EyeOff, GraduationCap } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
+import { api } from "@/lib/api";
+import { PROGRAMMES } from "@/lib/catalog";
 
-/* Students must sign up with their CST email.
-   Change this if the college email domain is different. */
+/* Students must sign up with their CST email. */
 const STUDENT_EMAIL_DOMAIN = "rub.edu.bt";
+
+const thisYear = new Date().getFullYear();
+const joinYears = Array.from({ length: 7 }, (_, i) => thisYear - i);
 
 const inputClass =
   "w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm font-normal text-[#192B50] placeholder:text-[#9AA6BC] focus:outline-none focus:border-[#2563EB]";
 
+const selectClass = (value) =>
+  `w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm font-normal appearance-none bg-white focus:outline-none focus:border-[#2563EB] ${
+    value ? "text-[#192B50]" : "text-[#9AA6BC]"
+  }`;
+
 export default function StudentSignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [programmes, setProgrammes] = useState([]);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
     studentId: "",
-    department: "",
+    programmeId: "",
+    joinYear: "",
     password: "",
     confirmPassword: "",
     agreed: false,
   });
+
+  useEffect(() => {
+    api("/catalog/programmes")
+      .then((list) => setProgrammes(Array.isArray(list) && list.length ? list : PROGRAMMES))
+      .catch(() => setProgrammes(PROGRAMMES));
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData({ ...formData, [name]: type === "checkbox" ? checked : value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -52,8 +71,26 @@ export default function StudentSignupPage() {
       return;
     }
 
-    // TODO (backend phase): POST /api/auth/register with role "STUDENT"
-    console.log("Student signup:", { ...formData, role: "STUDENT" });
+    setLoading(true);
+    try {
+      const data = await api("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          role: "STUDENT",
+          fullName: formData.fullName.trim(),
+          email: formData.email.trim(),
+          studentId: formData.studentId.trim(),
+          programmeId: Number(formData.programmeId),
+          joinYear: Number(formData.joinYear),
+          password: formData.password,
+        }),
+      });
+      setSuccess(data.message);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -61,7 +98,7 @@ export default function StudentSignupPage() {
       {/* Header */}
       <div className="flex justify-between items-center px-10 pt-8 pb-4 max-w-6xl mx-auto">
         <div className="flex items-center gap-3">
-          <Image src="/cst-logo.png" alt="CST Logo" width={44} height={44} style={{ width: 44, height: "auto" }} />
+          <Image src="/cst-logo.png" alt="CST Logo" width={44} height={44} />
           <span className="text-[17px] font-bold text-[#192B50] leading-tight">
             CST ALUMNI<br />PORTAL
           </span>
@@ -74,44 +111,45 @@ export default function StudentSignupPage() {
       {/* Heading */}
       <div className="max-w-6xl mx-auto px-10 mb-6">
         <h1 className="text-[34px] font-bold text-[#192B50]">Create your student account</h1>
-        <p className="text-[#71809D] mt-1">
-          Join the CST community and connect with opportunities.
-        </p>
+        <p className="text-[#71809D] mt-1">Join the CST community and connect with opportunities.</p>
       </div>
 
       {/* Card */}
       <div className="max-w-6xl mx-auto px-10 pb-16">
         <div className="flex border border-gray-300 rounded-2xl overflow-hidden">
           {/* Left panel */}
-          <div className="relative w-78.75 shrink-0 bg-[#071D3B] text-white flex flex-col">
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-8 pt-10 relative z-10">
-              <div className="bg-[#0D2A55] rounded-full w-20 h-20 flex items-center justify-center mb-5">
-                <GraduationCap className="text-[#2563EB]" size={34} strokeWidth={1.75} />
-              </div>
-              <h2 className="text-xl font-bold mb-1">Student Registration</h2>
-              <p className="text-sm text-gray-300 mb-8">Create your student account</p>
-              <p className="text-xs text-gray-400 leading-relaxed">
-                Your information is secure<br />and used only for CST services.
+          <div className="relative hidden w-[315px] shrink-0 flex-col bg-sidebar text-white md:flex">
+            <div className="relative z-10 px-10 pt-12">
+              <h2 className="text-3xl font-bold">Student Registration</h2>
+              <p className="mt-5 text-lg leading-snug text-white/90">
+                Create your student account
+              </p>
+              <p className="mt-5 text-sm text-white/80">
+                Your information is secure
+                <br />
+                and used only for CST services.
               </p>
             </div>
 
-            {/* Curved campus photo (needs public/campus.jpg) */}
-            <div className="relative h-60 w-full">
-              <Image src="/campus.jpg" alt="CST Campus" fill sizes="315px" className="object-cover" />
-              {/* Wave edge on top of the photo */}
+            {/* Campus photo with wave-shaped edge */}
+            <div className="relative mt-auto h-64 w-full">
+              <div
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ backgroundImage: "url('/campus.jpg')" }}
+              />
               <svg
                 aria-hidden="true"
                 viewBox="0 0 315 70"
                 preserveAspectRatio="none"
-                className="absolute -top-px left-0 h-17.5 w-full"
+                className="absolute -top-px left-0 w-full text-sidebar"
+                style={{ height: 70 }}
               >
                 <path
                   d="M0 0H315V18C270 -4 235 4 195 28C150 54 95 62 50 44C30 36 12 36 0 42Z"
-                  fill="#071D3B"
+                  fill="currentColor"
                 />
               </svg>
             </div>
-            <div className="absolute inset-0 -z-10 bg-[#071D3B]" />
           </div>
 
           {/* Right form */}
@@ -123,6 +161,7 @@ export default function StudentSignupPage() {
                 value={formData.fullName}
                 onChange={handleChange}
                 placeholder="Enter your full name"
+                maxLength={50}
                 required
                 className={inputClass}
               />
@@ -139,7 +178,7 @@ export default function StudentSignupPage() {
                 className={inputClass}
               />
               <p className="mt-1.5 text-xs text-[#71809D]">
-                Use your CST email (@{STUDENT_EMAIL_DOMAIN}). 
+                Use your CST email (@{STUDENT_EMAIL_DOMAIN}). It is how we verify students.
               </p>
             </Field>
 
@@ -158,21 +197,37 @@ export default function StudentSignupPage() {
               />
             </Field>
 
-            <Field label="Department">
+            <Field label="Programme">
               <select
-                name="department"
-                value={formData.department}
+                name="programmeId"
+                value={formData.programmeId}
                 onChange={handleChange}
                 required
-                className={`w-full border border-[#D7E0EE] rounded-lg px-4 py-3 text-sm font-normal appearance-none bg-white focus:outline-none focus:border-[#2563EB] ${
-                  formData.department ? "text-[#192B50]" : "text-[#9AA6BC]"
-                }`}
+                className={selectClass(formData.programmeId)}
               >
-                <option value="">Select your department</option>
-                <option value="cse" className="text-[#192B50]">Computer Science & Engineering</option>
-                <option value="ece" className="text-[#192B50]">Electronics & Communication</option>
-                <option value="civil" className="text-[#192B50]">Civil Engineering</option>
-                <option value="electrical" className="text-[#192B50]">Electrical Engineering</option>
+                <option value="">Select your programme</option>
+                {programmes.map((p) => (
+                  <option key={p.id} value={p.id} className="text-[#192B50]">
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Year of Joining">
+              <select
+                name="joinYear"
+                value={formData.joinYear}
+                onChange={handleChange}
+                required
+                className={selectClass(formData.joinYear)}
+              >
+                <option value="">Select the year you joined CST</option>
+                {joinYears.map((y) => (
+                  <option key={y} value={y} className="text-[#192B50]">
+                    {y}
+                  </option>
+                ))}
               </select>
             </Field>
 
@@ -231,25 +286,33 @@ export default function StudentSignupPage() {
               />
               <span className="text-sm text-[#71809D]">
                 I agree to the{" "}
-                <a href="#" className="text-[#192B50] font-medium">Terms &amp; Conditions</a>{" "}
-                and{" "}
+                <a href="#" className="text-[#192B50] font-medium">Terms &amp; Conditions</a> and{" "}
                 <a href="#" className="text-[#192B50] font-medium">Privacy Policy</a>
               </span>
             </div>
 
             {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
 
-            {/* Submit */}
-            <button
-              type="submit"
-              className="w-full bg-[#2563EB] hover:bg-[#1D4FC4] text-white py-3.5 rounded-lg text-[15px] font-semibold transition-colors"
-            >
-              Create Student Account
-            </button>
+            {success ? (
+              <div className="rounded-lg bg-green-50 p-4 text-sm text-green-700">
+                {success}{" "}
+                <Link href="/login?role=student" className="font-semibold underline">
+                  Go to login
+                </Link>
+              </div>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#2563EB] hover:bg-[#1D4FC4] text-white py-3.5 rounded-lg text-[15px] font-semibold transition-colors disabled:opacity-60"
+              >
+                {loading ? "Creating account..." : "Create Student Account"}
+              </button>
+            )}
 
             <p className="text-center text-sm text-[#71809D] mt-5">
               Already have an account?{" "}
-              <Link href="/login" className="text-[#2563EB] font-medium">
+              <Link href="/login?role=student" className="text-[#2563EB] font-medium">
                 Login here
               </Link>
             </p>
