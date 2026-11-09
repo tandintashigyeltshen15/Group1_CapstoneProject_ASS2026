@@ -22,7 +22,6 @@ model alumni {
   career_history         career_history[]
   contribution           contribution[]
   mentorship_request     mentorship_request[]
-  pledge                 pledge[]
   project                project[]
   publication            publication[]
 
@@ -230,63 +229,30 @@ model student {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model user {
-  UserID             Int                  @id @default(autoincrement()) @db.UnsignedInt
-  RoleID             Int                  @db.UnsignedInt
-  Username           String               @unique(map: "Username") @db.VarChar(50)
-  Password           String               @db.VarChar(255)
-  Name               String               @db.VarChar(50)
-  Email              String               @unique(map: "Email") @db.VarChar(254)
-  AccountStatus      String               @default("Pending") @db.VarChar(20)
-  CreatedAt          DateTime?            @default(now()) @db.DateTime(0)
-  RejectionReason    String?              @db.VarChar(250)
-  ProfilePhoto       String?              @db.VarChar(255)
-  alumni             alumni?
-  announcement       announcement[]
-  event              event[]
-  event_registration event_registration[]
-  funding_initiative funding_initiative[]
-  notification       notification[]
-  opportunity        opportunity[]
-  staff              staff?
-  student            student?
-  role               role                 @relation(fields: [RoleID], references: [RoleID], map: "fk_user_role")
+  UserID                Int                     @id @default(autoincrement()) @db.UnsignedInt
+  RoleID                Int                     @db.UnsignedInt
+  Username              String                  @unique(map: "Username") @db.VarChar(50)
+  Password              String                  @db.VarChar(255)
+  Name                  String                  @db.VarChar(50)
+  Email                 String                  @unique(map: "Email") @db.VarChar(254)
+  AccountStatus         String                  @default("Pending") @db.VarChar(20)
+  CreatedAt             DateTime?               @default(now()) @db.DateTime(0)
+  RejectionReason       String?                 @db.VarChar(250)
+  ProfilePhoto          String?                 @db.VarChar(255)
+  alumni                alumni?
+  announcement          announcement[]
+  contribution_campaign contribution_campaign[]
+  contribution_payment  contribution_payment[]
+  contribution_request  contribution_request[]
+  event                 event[]
+  event_registration    event_registration[]
+  notification          notification[]
+  opportunity           opportunity[]
+  staff                 staff?
+  student               student?
+  role                  role                    @relation(fields: [RoleID], references: [RoleID], map: "fk_user_role")
 
   @@index([RoleID], map: "fk_user_role")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model funding_initiative {
-  InitiativeID Int       @id @default(autoincrement()) @db.UnsignedInt
-  CreatorID    Int       @db.UnsignedInt
-  Title        String    @db.VarChar(150)
-  Description  String    @db.Text
-  FundingType  String    @db.VarChar(50)
-  TargetAmount Decimal?  @db.Decimal(12, 2)
-  Deadline     DateTime? @db.DateTime(0)
-  Status       String    @default("Open") @db.VarChar(20)
-  CreatedAt    DateTime  @default(now()) @db.DateTime(0)
-  user         user      @relation(fields: [CreatorID], references: [UserID], map: "fk_initiative_creator")
-  pledge       pledge[]
-
-  @@index([CreatorID], map: "fk_initiative_creator")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model pledge {
-  PledgeID           Int                @id @default(autoincrement()) @db.UnsignedInt
-  InitiativeID       Int                @db.UnsignedInt
-  AlumniID           Int                @db.UnsignedInt
-  Amount             Decimal?           @db.Decimal(12, 2)
-  Note               String?            @db.VarChar(255)
-  IsAnonymous        Boolean            @default(false)
-  Status             String             @default("Pledged") @db.VarChar(20)
-  PledgeDate         DateTime           @default(now()) @db.DateTime(0)
-  ReceivedDate       DateTime?          @db.DateTime(0)
-  alumni             alumni             @relation(fields: [AlumniID], references: [AlumniID], onDelete: Cascade, map: "fk_pledge_alumni")
-  funding_initiative funding_initiative @relation(fields: [InitiativeID], references: [InitiativeID], onDelete: Cascade, map: "fk_pledge_initiative")
-
-  @@index([AlumniID], map: "fk_pledge_alumni")
-  @@index([InitiativeID, Status], map: "idx_pledge_initiative_status")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -300,4 +266,78 @@ model announcement {
   user           user     @relation(fields: [CreatorID], references: [UserID], map: "fk_announcement_creator")
 
   @@index([CreatorID], map: "fk_announcement_creator")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model contribution_payment {
+  PaymentID             Int                   @id @default(autoincrement()) @db.UnsignedInt
+  CampaignID            Int                   @db.UnsignedInt
+  UserID                Int                   @db.UnsignedInt
+  Amount                Decimal               @db.Decimal(12, 2)
+  Reference             String                @db.VarChar(50)
+  PaymentDate           DateTime              @db.Date
+  ReceiptData           Bytes                 @db.MediumBlob
+  ReceiptType           String                @db.VarChar(30)
+  IsAnonymous           Boolean               @default(false)
+  Status                String                @default("Pending") @db.VarChar(20)
+  Remarks               String?               @db.VarChar(250)
+  VerifiedBy            Int?                  @db.UnsignedInt
+  SubmittedAt           DateTime              @default(now()) @db.DateTime(0)
+  VerifiedAt            DateTime?             @db.DateTime(0)
+  contribution_campaign contribution_campaign @relation(fields: [CampaignID], references: [CampaignID], map: "fk_payment_campaign")
+  user                  user                  @relation(fields: [UserID], references: [UserID], map: "fk_cpay_user")
+
+  @@index([CampaignID, Status], map: "idx_payment_campaign_status")
+  @@index([Reference], map: "idx_payment_reference")
+  @@index([UserID, SubmittedAt], map: "idx_payment_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model contribution_request {
+  RequestID        Int       @id @default(autoincrement()) @db.UnsignedInt
+  CreatorID        Int       @db.UnsignedInt
+  Title            String    @db.VarChar(150)
+  Category         String    @db.VarChar(50)
+  ContributionType String    @db.VarChar(20)
+  Description      String    @db.Text
+  TargetAmount     Decimal?  @db.Decimal(12, 2)
+  Deadline         DateTime? @db.DateTime(0)
+  ImageUrl         String?   @db.VarChar(255)
+  Status           String    @default("Draft") @db.VarChar(20)
+  CreatedAt        DateTime  @default(now()) @db.DateTime(0)
+  user             user      @relation(fields: [CreatorID], references: [UserID], map: "fk_creq_creator")
+
+  @@index([CreatorID], map: "fk_creq_creator")
+}
+
+model institution_account {
+  AccountID     Int      @id @default(autoincrement()) @db.UnsignedInt
+  BankName      String   @db.VarChar(100)
+  AccountName   String   @db.VarChar(150)
+  AccountNumber String   @db.VarChar(40)
+  Branch        String?  @db.VarChar(100)
+  Instructions  String?  @db.VarChar(500)
+  UpdatedBy     Int?     @db.UnsignedInt
+  UpdatedAt     DateTime @default(now()) @db.DateTime(0)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model contribution_campaign {
+  CampaignID           Int                    @id @default(autoincrement()) @db.UnsignedInt
+  CreatorID            Int                    @db.UnsignedInt
+  Title                String                 @db.VarChar(150)
+  Category             String                 @db.VarChar(50)
+  ContributionType     String                 @default("Monetary") @db.VarChar(20)
+  Description          String                 @db.Text
+  TargetAmount         Decimal                @db.Decimal(12, 2)
+  Deadline             DateTime               @db.Date
+  Status               String                 @default("Draft") @db.VarChar(20)
+  ImageData            Bytes?                 @db.MediumBlob
+  ImageType            String?                @db.VarChar(30)
+  ImageUpdatedAt       DateTime?              @db.DateTime(0)
+  CreatedAt            DateTime               @default(now()) @db.DateTime(0)
+  user                 user                   @relation(fields: [CreatorID], references: [UserID], map: "fk_campaign_creator")
+  contribution_payment contribution_payment[]
+
+  @@index([CreatorID], map: "fk_campaign_creator")
 }

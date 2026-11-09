@@ -43,6 +43,7 @@ app.use("/api/student", require("./routes/student.routes"));
 app.use("/api/alumni-hub", require("./routes/alumniHub.routes"));
 app.use("/api/mentorship", require("./routes/mentorship.routes"));
 app.use("/api/internships", require("./routes/internships.routes"));
+app.use("/api/contributions/member", require("./routes/memberContributions.routes"));
 app.use("/api/contributions", require("./routes/contributions.routes"));
 app.use("/api/events", eventsRoutes);
 app.use("/api/notifications", require("./routes/notifications.routes"));
