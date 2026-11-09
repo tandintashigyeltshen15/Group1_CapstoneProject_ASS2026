@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
 import {
   ClipboardCheck,
   LayoutGrid,
@@ -15,33 +16,8 @@ import {
   Hourglass,
   Check,
   X,
+  Mail,
 } from "lucide-react";
-
-/* ------------------------------------------------------------------
-   DATA (temporary): empty for now. Later, the backend combines three
-   sources into one list: internship applications, mentorship requests
-   and event registrations.
-
-   applications: {
-     id, type: "Internship" | "Mentorship" | "Event",
-     title, subtitle,              // e.g. "Software Intern", "DrukTech Solutions"
-     appliedAt: "2026-10-18",
-     deadline: "2026-11-30",       // internships only
-     eventDate: "2026-11-20",      // events only
-     description,
-     status: see statusConfig below
-   }
-------------------------------------------------------------------- */
-const applications = [
-  { id: 1, type: "Internship", title: "Software Engineering Intern", subtitle: "DrukTech Solutions",
-    appliedAt: "2026-10-12", deadline: "2026-11-30", status: "UNDER_REVIEW",
-    description: "Work with our web team on real projects." },
-  { id: 2, type: "Mentorship", title: "Mentorship Request", subtitle: "to Test Alumni (Alumnus)",
-    appliedAt: "2026-10-05", status: "PENDING",
-    description: "Seeking guidance on a software engineering career." },
-  { id: 3, type: "Event", title: "CST Alumni Career Talk", subtitle: "CST Alumni Association",
-    appliedAt: "2026-10-10", eventDate: "2026-11-20", status: "REGISTERED" },
-];
 
 const tabs = [
   { label: "All Applications", type: null, icon: LayoutGrid },
@@ -57,7 +33,7 @@ const typeConfig = {
 };
 
 const statusConfig = {
-  // Internships (the 4 stages from the proposal)
+  // Internships
   APPLIED: {
     label: "Applied",
     style: "bg-blue-100 text-primary",
@@ -95,6 +71,12 @@ const statusConfig = {
     icon: Hourglass,
     message: "Your request is waiting for the mentor's response.",
   },
+  MENTOR_ACCEPTED: {
+    label: "Accepted",
+    style: "bg-green-100 text-success",
+    icon: CheckCircle2,
+    message: "Your mentor accepted your request.",
+  },
   DECLINED: {
     label: "Declined",
     style: "bg-red-100 text-danger",
@@ -110,6 +92,15 @@ const statusConfig = {
   },
 };
 
+// Unknown status words from the backend still show up instead of crashing
+const getStatus = (status) =>
+  statusConfig[status] || {
+    label: status,
+    style: "bg-gray-100 text-text",
+    icon: Clock,
+    message: "",
+  };
+
 const stages = ["APPLIED", "UNDER_REVIEW", "SHORTLISTED", "DECISION"];
 const stageIndex = (status) =>
   ({ APPLIED: 0, UNDER_REVIEW: 1, SHORTLISTED: 2, ACCEPTED: 3, NOT_SELECTED: 3 }[status] ?? 0);
@@ -117,9 +108,47 @@ const stageIndex = (status) =>
 const fmt = (d) =>
   new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
+const norm = (s = "") => s.toUpperCase().replace(/ /g, "_"); // "Under Review" -> "UNDER_REVIEW"
+
+/* ------------------- API shapes -> the page's shape ------------------- */
+const fromInternship = (a) => ({
+  id: a.id,
+  type: "Internship",
+  title: a.internship.title,
+  subtitle: a.internship.company,
+  appliedAt: a.appliedAt,
+  deadline: a.internship.deadline,
+  status: norm(a.status),
+  description: a.internship.description,
+});
+
+const fromMentorship = (r) => ({
+  id: r.id,
+  type: "Mentorship",
+  title: "Mentorship Request",
+  subtitle: `to ${r.mentorName}`,
+  appliedAt: r.date,
+  status: r.status === "Accepted" ? "MENTOR_ACCEPTED" : norm(r.status),
+  description: r.subject,
+  detail: r.detail,
+  contactEmail: r.contactEmail, // only filled once the mentor accepts
+});
+
+const fromEvent = (r) => ({
+  id: r.RegistrationID,
+  type: "Event",
+  title: r.event.Title,
+  subtitle: r.event.user?.Name || "",
+  appliedAt: r.RegistrationDate,
+  eventDate: r.event.DateTime,
+  status: "REGISTERED",
+  description: r.event.Description,
+  venue: r.event.Venue,
+});
+
 /* ----------------------------- pieces ----------------------------- */
 function StatusBadge({ status }) {
-  const { label, style, icon: Icon } = statusConfig[status];
+  const { label, style, icon: Icon } = getStatus(status);
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ${style}`}
@@ -197,17 +226,38 @@ function Stepper({ status }) {
 
 /* ------------------------------- page ------------------------------ */
 export default function ApplicationsPage() {
+  const [applications, setApplications] = useState([]);
+  const [loaded, setLoaded] = useState(false);
   const [tab, setTab] = useState(null);
   const [selected, setSelected] = useState(null);
+
+  useEffect(() => {
+    // If one source fails, the other two still show
+    Promise.allSettled([
+      api("/internships"),
+      api("/mentorship"),
+      api("/events/registrations/mine"),
+    ]).then(([internships, mentorship, events]) => {
+      const all = [];
+      if (internships.status === "fulfilled")
+        all.push(...internships.value.applications.map(fromInternship));
+      if (mentorship.status === "fulfilled")
+        all.push(...mentorship.value.requests.map(fromMentorship));
+      if (events.status === "fulfilled") all.push(...events.value.map(fromEvent));
+      setApplications(all);
+      setLoaded(true);
+    });
+  }, []);
 
   const sorted = [...applications].sort((a, b) => new Date(b.appliedAt) - new Date(a.appliedAt));
   const list = sorted.filter((a) => !tab || a.type === tab);
   const count = (type) => (type ? applications.filter((a) => a.type === type).length : applications.length);
 
-  const emptyMessage =
-    applications.length === 0
-      ? "You haven't applied or registered for anything yet."
-      : "Nothing here yet.";
+  const emptyMessage = !loaded
+    ? "Loading..."
+    : applications.length === 0
+    ? "You haven't applied or registered for anything yet."
+    : "Nothing here yet.";
 
   return (
     <div>
@@ -250,7 +300,7 @@ export default function ApplicationsPage() {
         <div className="space-y-4">
           {list.map((a) => {
             const { dateLabel } = typeConfig[a.type];
-            const { message } = statusConfig[a.status];
+            const { message } = getStatus(a.status);
             return (
               <div
                 key={`${a.type}-${a.id}`}
@@ -268,7 +318,9 @@ export default function ApplicationsPage() {
                     {a.deadline && <span>Deadline: {fmt(a.deadline)}</span>}
                     {a.eventDate && <span>Event Date: {fmt(a.eventDate)}</span>}
                   </p>
-                  {a.description && <p className="mt-1 text-sm text-muted">{a.description}</p>}
+                  {a.description && (
+                    <p className="mt-1 line-clamp-2 text-sm text-muted">{a.description}</p>
+                  )}
                 </div>
 
                 <div className="w-56 border-l border-gray-200 pl-5">
@@ -294,7 +346,7 @@ export default function ApplicationsPage() {
           <p className="text-sm text-muted">{selected.subtitle}</p>
           <div className="mt-3">
             <StatusBadge status={selected.status} />
-            <p className="mt-2 text-sm text-text">{statusConfig[selected.status].message}</p>
+            <p className="mt-2 text-sm text-text">{getStatus(selected.status).message}</p>
           </div>
 
           {selected.type === "Internship" && <Stepper status={selected.status} />}
@@ -316,7 +368,35 @@ export default function ApplicationsPage() {
                 {fmt(selected.eventDate)}
               </p>
             )}
-            {selected.description && <p className="pt-2">{selected.description}</p>}
+            {selected.venue && (
+              <p>
+                <span className="text-muted">Venue: </span>
+                {selected.venue}
+              </p>
+            )}
+            {selected.type === "Mentorship" && (
+              <p>
+                <span className="text-muted">Subject: </span>
+                {selected.description}
+              </p>
+            )}
+            {selected.detail && (
+              <p className="whitespace-pre-line">
+                <span className="text-muted">Your message: </span>
+                {selected.detail}
+              </p>
+            )}
+            {selected.contactEmail && (
+              <p className="flex items-center gap-1 pt-1 text-primary">
+                <Mail size={14} />
+                <a href={`mailto:${selected.contactEmail}`} className="hover:underline">
+                  {selected.contactEmail}
+                </a>
+              </p>
+            )}
+            {selected.type !== "Mentorship" && selected.description && (
+              <p className="whitespace-pre-line pt-2">{selected.description}</p>
+            )}
           </div>
         </Modal>
       )}
