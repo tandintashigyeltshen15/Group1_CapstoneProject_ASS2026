@@ -1,31 +1,83 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { api } from "@/lib/api";
 import { PageHeader, Card, Badge, EmptyState, Notice, inputCls } from "@/components/ui";
-import { useStore, update, formatDate } from "@/lib/store";
-import { Avatar, Tabs, Table, SearchBox, statusTone, btnSm, btnSmDanger, btnSmSuccess } from "@/components/AdminUI";
+import { Avatar, Tabs, Table, SearchBox, btnSm, btnSmDanger } from "@/components/AdminUI";
 
 const ROLES = ["Student", "Alumni", "Staff", "Administrator"];
+const ROLE_LABEL = { Student: "Students", Alumni: "Alumni", Staff: "Staff", Administrator: "Admins" };
+const tones = { Active: "green", Pending: "orange", Suspended: "red", Rejected: "red" };
+
+const fmtDate = (d) =>
+  d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "-";
+
+// the login token holds the id of whoever is signed in
+function myUserId() {
+  try {
+    const t = localStorage.getItem("token");
+    const payload = JSON.parse(atob(t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return payload.id;
+  } catch {
+    return null;
+  }
+}
 
 function UsersContent({ initialQuery }) {
-  const [users] = useStore("adminUsers");
-  const [me] = useStore("adminProfile");
+  const [users, setUsers] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [meId] = useState(() => (typeof window === "undefined" ? null : myUserId()));
   const [role, setRole] = useState("all");
   const [status, setStatus] = useState("all");
   const [query, setQuery] = useState(initialQuery);
   const [flash, setFlash] = useState(null);
+  const [busyId, setBusyId] = useState(null);
 
-  const change = (user, patch, text) => {
-    update("adminUsers", (list) => list.map((u) => (u.id === user.id ? { ...u, ...patch } : u)));
-    setFlash({ tone: "green", text });
-  };
+  const load = () =>
+    api("/admin/users")
+      .then((d) => {
+        setUsers(d);
+        setLoaded(true);
+      })
+      .catch((err) => {
+        setFlash({ tone: "red", text: err.message });
+        setLoaded(true);
+      });
 
-  const remove = (user) => {
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function setUserStatus(user, next, text) {
+    setBusyId(user.id);
+    setFlash(null);
+    try {
+      await api(`/admin/users/${user.id}/status`, { method: "PATCH", body: JSON.stringify({ status: next }) });
+      setFlash({ tone: "green", text });
+      await load();
+    } catch (err) {
+      setFlash({ tone: "red", text: err.message });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function remove(user) {
     if (!window.confirm(`Remove ${user.name} from the portal? This cannot be undone.`)) return;
-    update("adminUsers", (list) => list.filter((u) => u.id !== user.id));
-    setFlash({ tone: "red", text: `${user.name} was removed.` });
-  };
+    setBusyId(user.id);
+    setFlash(null);
+    try {
+      await api(`/admin/users/${user.id}`, { method: "DELETE" });
+      setFlash({ tone: "green", text: `${user.name} was removed.` });
+      await load();
+    } catch (err) {
+      setFlash({ tone: "red", text: err.message });
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   const q = query.trim().toLowerCase();
   const matches = users.filter(
@@ -37,7 +89,7 @@ function UsersContent({ initialQuery }) {
 
   return (
     <div>
-      <PageHeader title="User Management" subtitle="Approve new accounts and manage who can use the portal." />
+      <PageHeader title="User Management" subtitle="See who is on the portal and manage their access." />
       {flash && <Notice tone={flash.tone}>{flash.text}</Notice>}
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -46,7 +98,11 @@ function UsersContent({ initialQuery }) {
           onChange={setRole}
           tabs={[
             { key: "all", label: "All", count: matches.length },
-            ...ROLES.map((r) => ({ key: r, label: r === "Administrator" ? "Admins" : `${r}s`, count: matches.filter((u) => u.role === r).length })),
+            ...ROLES.map((r) => ({
+              key: r,
+              label: ROLE_LABEL[r],
+              count: matches.filter((u) => u.role === r).length,
+            })),
           ]}
         />
       </div>
@@ -59,47 +115,61 @@ function UsersContent({ initialQuery }) {
             <option>Active</option>
             <option>Pending</option>
             <option>Suspended</option>
+            <option>Rejected</option>
           </select>
         </div>
 
         <Table
           head={["User", "Role", "Details", "Joined", "Status", "Actions"]}
-          empty={shown.length === 0 && <EmptyState message="No users match your filters." />}
+          empty={shown.length === 0 && <EmptyState message={loaded ? "No users match your filters." : "Loading..."} />}
         >
           {shown.map((u) => {
-            const isMe = u.email === me.email;
+            const isMe = u.id === meId;
+            const busy = busyId === u.id;
             return (
               <tr key={u.id}>
                 <td className="px-3 py-3">
                   <div className="flex items-center gap-3">
                     <Avatar name={u.name} />
                     <div>
-                      <p className="font-medium text-sidebar">{u.name}{isMe && <span className="ml-1 text-xs text-muted">(you)</span>}</p>
+                      <p className="font-medium text-sidebar">
+                        {u.name}
+                        {isMe && <span className="ml-1 text-xs text-muted">(you)</span>}
+                      </p>
                       <p className="text-xs text-muted">{u.email}</p>
                     </div>
                   </div>
                 </td>
                 <td className="px-3 py-3 text-text">{u.role}</td>
                 <td className="px-3 py-3 text-text">{u.detail}</td>
-                <td className="whitespace-nowrap px-3 py-3 text-muted">{formatDate(u.joined)}</td>
-                <td className="px-3 py-3"><Badge tone={statusTone[u.status]}>{u.status}</Badge></td>
+                <td className="whitespace-nowrap px-3 py-3 text-muted">{fmtDate(u.joined)}</td>
+                <td className="px-3 py-3"><Badge tone={tones[u.status] || "gray"}>{u.status}</Badge></td>
                 <td className="px-3 py-3">
                   {isMe ? (
                     <span className="text-xs text-muted">-</span>
                   ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {u.status === "Pending" && (
-                        <button type="button" className={btnSmSuccess} onClick={() => change(u, { status: "Active" }, `${u.name} was approved.`)}>Approve</button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {u.status === "Pending" && u.role === "Staff" && (
+                        <Link href="/admin/staff-verification" className={btnSm}>Review</Link>
+                      )}
+                      {u.status === "Pending" && u.role === "Alumni" && (
+                        <span className="text-xs text-muted">Awaiting staff review</span>
                       )}
                       {u.status === "Active" && (
-                        <button type="button" className={btnSm} onClick={() => change(u, { status: "Suspended" }, `${u.name} was suspended.`)}>Suspend</button>
+                        <button type="button" disabled={busy} className={btnSm} onClick={() => setUserStatus(u, "Suspended", `${u.name} was suspended and can no longer log in.`)}>
+                          Suspend
+                        </button>
                       )}
                       {u.status === "Suspended" && (
-                        <button type="button" className={btnSm} onClick={() => change(u, { status: "Active" }, `${u.name} was reactivated.`)}>Reactivate</button>
+                        <button type="button" disabled={busy} className={btnSm} onClick={() => setUserStatus(u, "Active", `${u.name} was reactivated.`)}>
+                          Reactivate
+                        </button>
                       )}
-                      <button type="button" className={btnSmDanger} onClick={() => remove(u)}>
-                        {u.status === "Pending" ? "Reject" : "Remove"}
-                      </button>
+                      {u.role !== "Administrator" && (
+                        <button type="button" disabled={busy} className={btnSmDanger} onClick={() => remove(u)}>
+                          Remove
+                        </button>
+                      )}
                     </div>
                   )}
                 </td>
