@@ -14,8 +14,6 @@
 export const ADMIN_SEEDS = {
   // Numbers that come from the whole database (not just the demo rows below)
   adminStats: {
-    totalAlumni: 2458,
-    activeMentors: 186,
     reportedContent: 3,
     growth: {
       alumni: 12.5,
@@ -65,33 +63,9 @@ export const ADMIN_SEEDS = {
 
   // Role: Student | Alumni | Staff | Administrator
   // Status: Active | Pending | Suspended
-  adminUsers: [
-    { id: 1, name: "Tashi Wangdi", email: "tashi.wangdi@cst.edu.bt", role: "Administrator", status: "Active", joined: "2024-01-10", detail: "System Administration" },
-    { id: 2, name: "Dechen Pelden", email: "dechen.pelden@cst.edu.bt", role: "Staff", status: "Active", joined: "2024-02-02", detail: "Alumni Relations" },
-    { id: 3, name: "Tandin Dorji", email: "tandin.dorji@example.com", role: "Alumni", status: "Active", joined: "2025-03-14", detail: "Civil Engineering, 2021" },
-    { id: 4, name: "Chimi Dema", email: "chimi.dema@example.com", role: "Alumni", status: "Active", joined: "2025-03-20", detail: "Electrical Engineering, 2019" },
-    { id: 5, name: "Karma Wangchuk", email: "karma.wangchuk@example.com", role: "Alumni", status: "Pending", joined: "2026-10-18", detail: "Civil Engineering, 2021" },
-    { id: 6, name: "Tashi Lhamo", email: "tashi.lhamo@example.com", role: "Alumni", status: "Pending", joined: "2026-10-17", detail: "Electrical Engineering, 2019" },
-    { id: 7, name: "Jigme Namgyel", email: "jigme.namgyel@example.com", role: "Alumni", status: "Pending", joined: "2026-10-14", detail: "Computer Science & Engineering, 2023" },
-    { id: 8, name: "Pema Choden", email: "pema.choden@cst.edu.bt", role: "Student", status: "Active", joined: "2026-08-05", detail: "Information Technology, Year 3" },
-    { id: 9, name: "Tenzin Wangmo", email: "tenzin.wangmo@cst.edu.bt", role: "Student", status: "Active", joined: "2026-08-06", detail: "Software Engineering, Year 3" },
-    { id: 10, name: "Karma Jamtsho", email: "karma.jamtsho@cst.edu.bt", role: "Student", status: "Active", joined: "2026-08-09", detail: "Information Technology, Year 4" },
-    { id: 11, name: "Sonam Pelden", email: "sonam.pelden@cst.edu.bt", role: "Student", status: "Suspended", joined: "2026-08-12", detail: "Electronics & Communication, Year 2" },
-    { id: 12, name: "Ugyen Tshering", email: "ugyen.tshering@cst.edu.bt", role: "Student", status: "Active", joined: "2026-08-15", detail: "Civil Engineering, Year 4" },
-    { id: 13, name: "Sonam Choki", email: "sonam.choki@example.com", role: "Alumni", status: "Active", joined: "2025-06-02", detail: "Electronics & Communication, 2018" },
-    { id: 14, name: "Kinley Zangmo", email: "kinley.zangmo@example.com", role: "Alumni", status: "Active", joined: "2025-07-19", detail: "Architecture, 2021" },
-    { id: 15, name: "Pema Dema", email: "pema.dema@example.com", role: "Staff", status: "Active", joined: "2025-11-04", detail: "Registrar's Office" },
-  ],
+  adminUsers: [],
 
-  adminStaffVerifications: [
-    { id: 1, name: "Tashi Dorji", email: "tashi.dorji@cst.edu.bt", department: "Computer Science", registeredAt: "2026-10-22T10:24:00", status: "Pending Review" },
-    { id: 2, name: "Phuntsho Choden", email: "phuntsho.choden@cst.edu.bt", department: "Electrical Engineering", registeredAt: "2026-10-21T15:17:00", status: "Pending Review" },
-    { id: 3, name: "Karma Jamtsho", email: "karma.jamtsho@cst.edu.bt", department: "Mechanical Engineering", registeredAt: "2026-10-20T11:42:00", status: "Pending Review" },
-    { id: 4, name: "Dechen Sangay", email: "dechen.sangay@cst.edu.bt", department: "Mathematics", registeredAt: "2026-10-19T14:36:00", status: "Pending Review" },
-    { id: 5, name: "Namgay Bhutia", email: "namgay.bhutia@cst.edu.bt", department: "Information Technology", registeredAt: "2026-10-18T09:55:00", status: "Rejected" },
-    { id: 6, name: "Lhamo Tshering", email: "lhamo.tshering@cst.edu.bt", department: "Civil Engineering", registeredAt: "2026-10-17T16:20:00", status: "Approved" },
-    { id: 7, name: "Sonam Gyeltshen", email: "sonam.gyeltshen@cst.edu.bt", department: "Administration", registeredAt: "2026-10-16T13:12:00", status: "Pending Review" },
-  ],
+  adminStaffVerifications: [],
 
   // Type: Job | Internship   Status: Approved | Pending | Rejected | Closed
   adminOpportunities: [
