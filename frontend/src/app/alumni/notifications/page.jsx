@@ -1,17 +1,43 @@
 "use client";
 
-import { Bell, CheckCheck, Trash2 } from "lucide-react";
-import { useStore, update, formatDateTime } from "@/lib/store";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
+import { Bell, CheckCheck } from "lucide-react";
 import { PageHeader, Card, Badge, EmptyState, btnOutline } from "@/components/ui";
 
-export default function NotificationsPage() {
-  const [items] = useStore("notifications");
-  const unread = items.filter((n) => !n.isRead).length;
-  const sorted = [...items].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+const fmtDateTime = (d) =>
+  new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
 
-  const markRead = (id) => update("notifications", (l) => l.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
-  const markAll = () => update("notifications", (l) => l.map((n) => ({ ...n, isRead: true })));
-  const remove = (id) => update("notifications", (l) => l.filter((n) => n.id !== id));
+export default function NotificationsPage() {
+  const [items, setItems] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  const load = () =>
+    api("/notifications")
+      .then((d) => {
+        setItems(d);
+        setLoaded(true);
+      })
+      .catch((err) => {
+        console.warn(err.message);
+        setLoaded(true);
+      });
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const unread = items.filter((n) => !n.isRead).length;
+
+  // Update the screen first, then the server (reload if it fails)
+  const markRead = (id) => {
+    setItems((l) => l.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+    api(`/notifications/${id}/read`, { method: "PATCH" }).catch(load);
+  };
+  const markAll = () => {
+    setItems((l) => l.map((n) => ({ ...n, isRead: true })));
+    api("/notifications/read-all", { method: "PATCH" }).catch(load);
+  };
 
   return (
     <div>
@@ -25,25 +51,24 @@ export default function NotificationsPage() {
         }
       />
       <Card>
-        {sorted.length === 0 ? (
-          <EmptyState message="No notifications yet." />
+        {items.length === 0 ? (
+          <EmptyState message={loaded ? "No notifications yet." : "Loading..."} />
         ) : (
           <ul className="divide-y divide-gray-100">
-            {sorted.map((n) => (
+            {items.map((n) => (
               <li key={n.id} className={`flex items-start gap-3 py-3 ${n.isRead ? "" : "bg-blue-50/40"}`}>
                 <Bell size={18} className={`mt-0.5 shrink-0 ${n.isRead ? "text-muted" : "text-primary"}`} />
                 <div className="flex-1">
                   <p className={`text-sm ${n.isRead ? "text-text" : "font-medium text-sidebar"}`}>{n.message}</p>
                   <p className="mt-1 flex items-center gap-2 text-xs text-muted">
-                    <Badge>{n.type}</Badge> {formatDateTime(n.createdAt)}
+                    <Badge>{n.title}</Badge> {fmtDateTime(n.createdAt)}
                   </p>
                 </div>
                 {!n.isRead && (
-                  <button onClick={() => markRead(n.id)} className="text-xs font-medium text-primary hover:underline">Mark as read</button>
+                  <button onClick={() => markRead(n.id)} className="text-xs font-medium text-primary hover:underline">
+                    Mark as read
+                  </button>
                 )}
-                <button onClick={() => remove(n.id)} aria-label="Delete notification" className="text-muted hover:text-danger">
-                  <Trash2 size={16} />
-                </button>
               </li>
             ))}
           </ul>

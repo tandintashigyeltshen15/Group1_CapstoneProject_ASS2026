@@ -50,6 +50,8 @@ app.use("/api/notifications", require("./routes/notifications.routes"));
 app.use("/api/verification", require("./routes/verification.routes"));
 app.use("/api/announcements", require("./routes/announcements.routes"));
 app.use("/api/profile-photo", require("./routes/profilePhoto.routes"));
+app.use("/api/alumni-dashboard", require("./routes/alumniDashboard.routes"));
+app.use("/api/mentor-inbox", require("./routes/mentorInbox.routes"));
 
 // These must stay ABOVE "/api/staff", otherwise the general staff router catches them first
 app.use("/api/staff/dashboard", require("./routes/staffDashboard.routes"));
