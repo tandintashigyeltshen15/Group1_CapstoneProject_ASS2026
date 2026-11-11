@@ -1,3 +1,4 @@
+
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -14,13 +15,15 @@ const TAB_ROLES = {
 };
 
 exports.register = async (req, res, next) => {
-  let savedProof = null; // name of the proof file, so it can be deleted if registration fails
+  let savedProof = null;
+
   try {
     const b = req.body || {};
+
     const name = String(b.fullName || "").trim();
     const email = String(b.email || "").trim().toLowerCase();
     const password = String(b.password || "");
-    const programmeId = Number(b.programmeId);
+    const requestedRole = String(b.role || "").trim().toUpperCase();
 
     if (name.length < 2 || name.length > 50) {
       return res.status(400).json({
@@ -40,27 +43,39 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    if (!Number.isInteger(programmeId)) {
-      return res.status(400).json({
-        message: "Select your programme",
-      });
-    }
-
-    const programme = await prisma.programme.findUnique({
-      where: { ProgrammeID: programmeId },
-    });
-
-    if (!programme) {
-      return res.status(400).json({
-        message: "Unknown programme",
+    if (!["STUDENT", "ALUMNI", "STAFF"].includes(requestedRole)) {
+      return res.status(403).json({
+        message: "Administrator accounts cannot self-register",
       });
     }
 
     const Password = await bcrypt.hash(password, 10);
     let data;
 
-    if (b.role === "STUDENT") {
-      const domain = "@" + (process.env.STUDENT_EMAIL_DOMAIN || "rub.edu.bt");
+    // ==========================================
+    // STUDENT REGISTRATION
+    // ==========================================
+    if (requestedRole === "STUDENT") {
+      const programmeId = Number(b.programmeId);
+
+      if (!Number.isInteger(programmeId)) {
+        return res.status(400).json({
+          message: "Select your programme",
+        });
+      }
+
+      const programme = await prisma.programme.findUnique({
+        where: { ProgrammeID: programmeId },
+      });
+
+      if (!programme) {
+        return res.status(400).json({
+          message: "Unknown programme",
+        });
+      }
+
+      const domain =
+        "@" + (process.env.STUDENT_EMAIL_DOMAIN || "rub.edu.bt");
 
       if (!email.endsWith(domain)) {
         return res.status(400).json({
@@ -113,7 +128,30 @@ exports.register = async (req, res, next) => {
           },
         },
       };
-    } else if (b.role === "ALUMNI") {
+    }
+
+    // ==========================================
+    // ALUMNI REGISTRATION
+    // ==========================================
+    else if (requestedRole === "ALUMNI") {
+      const programmeId = Number(b.programmeId);
+
+      if (!Number.isInteger(programmeId)) {
+        return res.status(400).json({
+          message: "Select your programme",
+        });
+      }
+
+      const programme = await prisma.programme.findUnique({
+        where: { ProgrammeID: programmeId },
+      });
+
+      if (!programme) {
+        return res.status(400).json({
+          message: "Unknown programme",
+        });
+      }
+
       const graduationYear = Number(b.graduationYear);
 
       if (
@@ -136,11 +174,12 @@ exports.register = async (req, res, next) => {
         });
       }
 
-      // Proof of graduation is required: it is what staff check against the registry
       try {
         savedProof = await saveProof(req.file);
       } catch (e) {
-        return res.status(400).json({ message: e.message });
+        return res.status(400).json({
+          message: e.message,
+        });
       }
 
       data = {
@@ -158,31 +197,113 @@ exports.register = async (req, res, next) => {
           },
         },
       };
-    } else {
-      return res.status(400).json({
-        message: "Staff and admin accounts are created by an admin",
-      });
     }
 
-    const user = await prisma.user.create({ data });
+    // ==========================================
+    // STAFF REGISTRATION
+    // ==========================================
+    else if (requestedRole === "STAFF") {
+      const staffId = String(b.staffId || "").trim();
+      const departmentId = Number(b.departmentId);
 
-    res.status(201).json({
+      const phoneNo = String(b.phoneNo || "").trim();
+      const qualifications = String(b.qualifications || "").trim();
+      const designation = String(b.designation || "").trim();
+      const areaOfExpertise = String(
+        b.areaOfExpertise || ""
+      ).trim();
+
+      if (!staffId || staffId.length > 10) {
+        return res.status(400).json({
+          message: "Enter a valid Staff ID (maximum 10 characters)",
+        });
+      }
+
+      if (!Number.isInteger(departmentId)) {
+        return res.status(400).json({
+          message: "Select your department",
+        });
+      }
+
+      const department = await prisma.department.findUnique({
+        where: {
+          DepartmentID: departmentId,
+        },
+      });
+
+      if (!department) {
+        return res.status(400).json({
+          message: "Unknown department",
+        });
+      }
+
+      if (phoneNo && !/^\d{8}$/.test(phoneNo)) {
+        return res.status(400).json({
+          message: "Phone number must be 8 digits",
+        });
+      }
+
+      const role = await prisma.role.findUnique({
+        where: {
+          RoleName: "Staff",
+        },
+      });
+
+      if (!role) {
+        return res.status(400).json({
+          message: "Staff role not found",
+        });
+      }
+
+      data = {
+        RoleID: role.RoleID,
+        Username: staffId,
+        Password,
+        Name: name,
+        Email: email,
+        AccountStatus: "Pending",
+
+        staff: {
+          create: {
+            StaffID: staffId,
+            DepartmentID: departmentId,
+            PhoneNo: phoneNo || null,
+            Qualifications: qualifications || null,
+            Designation: designation || null,
+            AreaOfExpertise: areaOfExpertise || null,
+          },
+        },
+      };
+    }
+
+    // ==========================================
+    // CREATE USER
+    // ==========================================
+    const user = await prisma.user.create({
+      data,
+    });
+
+    return res.status(201).json({
       message:
         user.AccountStatus === "Pending"
-          ? "Registered. Your account will be active after staff verifies it."
+          ? "Registration successful. Your account is pending Administrator verification."
           : "Registered successfully. You can log in now.",
+
       user: {
         id: user.UserID,
         name: user.Name,
+        email: user.Email,
         status: user.AccountStatus,
       },
     });
   } catch (err) {
-    if (savedProof) await removeProof(savedProof); // don't leave an orphan file behind
+    if (savedProof) {
+      await removeProof(savedProof);
+    }
 
     if (err.code === "P2002") {
       return res.status(409).json({
-        message: "Email or student ID is already registered",
+        message: "Email, username, ID or phone number is already registered",
       });
     }
 
@@ -190,9 +311,13 @@ exports.register = async (req, res, next) => {
   }
 };
 
+// ==========================================
+// LOGIN
+// ==========================================
 exports.login = async (req, res, next) => {
   try {
     const body = req.body || {};
+
     const identifier = String(
       body.identifier || body.email || ""
     ).trim();
@@ -217,8 +342,11 @@ exports.login = async (req, res, next) => {
       },
     });
 
+    const selectedRole = String(body.role || "").trim().toLowerCase();
+
     const wrongTab =
-      body.role && TAB_ROLES[body.role] !== user?.role?.RoleName;
+      selectedRole &&
+      TAB_ROLES[selectedRole] !== user?.role?.RoleName;
 
     if (
       !user ||
@@ -230,21 +358,21 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    // Check account status after verifying the password.
+    // Check account status
     if (user.AccountStatus !== "Active") {
-
-      // Show the rejection reason.
       if (user.AccountStatus === "Rejected") {
         return res.status(403).json({
           message: "Your registration was rejected.",
           rejectionReason:
-            user.RejectionReason || "No rejection reason was provided.",
+            user.RejectionReason ||
+            "No rejection reason was provided.",
         });
       }
 
       const messages = {
         Pending: "Your account is waiting for approval.",
-        Suspended: "Your account is suspended. Contact the administrator.",
+        Suspended:
+          "Your account is suspended. Contact the administrator.",
       };
 
       return res.status(403).json({
@@ -264,7 +392,7 @@ exports.login = async (req, res, next) => {
       }
     );
 
-    res.json({
+    return res.json({
       token,
       user: {
         id: user.UserID,
@@ -278,6 +406,9 @@ exports.login = async (req, res, next) => {
   }
 };
 
+// ==========================================
+// CURRENT AUTHENTICATED USER
+// ==========================================
 exports.me = async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({
@@ -300,7 +431,7 @@ exports.me = async (req, res, next) => {
 
     const { Password, ...safe } = user;
 
-    res.json({
+    return res.json({
       ...safe,
       role: user.role.RoleName,
     });
