@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 import {
   Settings,
   User,
   ShieldCheck,
   Lock,
-  Bell,
   Pencil,
   Mail,
   Phone,
@@ -14,9 +14,7 @@ import {
   CalendarDays,
   IdCard,
   Building2,
-  Briefcase,
-  Megaphone,
-  Users,
+  MapPin,
   LifeBuoy,
   ChevronRight,
   X,
@@ -28,40 +26,39 @@ const SUPPORT_EMAIL = "";
 const sections = [
   { id: "profile", label: "Profile Settings", desc: "Update your personal information", icon: User },
   { id: "account", label: "Account Settings", desc: "Manage your account details", icon: ShieldCheck },
-  { id: "notifications", label: "Notification Settings", desc: "Choose what you want to be notified about", icon: Bell },
-  { id: "privacy", label: "Privacy Settings", desc: "Control your profile visibility", icon: Lock },
+  { id: "privacy", label: "Privacy", desc: "How your information is shared", icon: Lock },
 ];
 
-const yearOptions = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
+const DZONGKHAGS = [
+  "Bumthang", "Chukha", "Dagana", "Gasa", "Haa", "Lhuentse", "Mongar", "Paro",
+  "Pemagatshel", "Punakha", "Samdrup Jongkhar", "Samtse", "Sarpang", "Thimphu",
+  "Trashigang", "Trashiyangtse", "Trongsa", "Tsirang", "Wangdue Phodrang", "Zhemgang",
+];
 
 const inputStyle =
   "w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-text outline-none focus:border-primary";
 
-const initials = (name) =>
+const initials = (name = "") =>
   name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
-/* ----------------------------- pieces ----------------------------- */
-function Toggle({ checked, onChange, label }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={() => onChange(!checked)}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-        checked ? "bg-primary" : "bg-gray-300"
-      }`}
-    >
-      <span
-        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
-          checked ? "left-5.5" : "left-0.5"
-        }`}
-      />
-    </button>
-  );
-}
+const emptyProfile = {
+  name: "",
+  email: "",
+  role: "Student",
+  accountStatus: "",
+  studentId: "",
+  programme: "",
+  joinYear: "",
+  phone: "",
+  dzongkhag: "",
+  gewog: "",
+  projects: "",
+  technicalSkills: "",
+  softSkills: "",
+  completion: 0,
+};
 
+/* ----------------------------- pieces ----------------------------- */
 function Panel({ id, icon: Icon, title, subtitle, action, children }) {
   return (
     <section
@@ -95,19 +92,6 @@ function InfoRow({ icon: Icon, value }) {
   );
 }
 
-function ToggleRow({ icon: Icon, title, desc, checked, onChange }) {
-  return (
-    <div className="flex items-center gap-4 rounded-lg border border-gray-100 bg-gray-50 p-4">
-      {Icon && <Icon size={20} className="shrink-0 text-primary" />}
-      <div className="flex-1">
-        <p className="text-sm font-medium text-sidebar">{title}</p>
-        {desc && <p className="text-xs text-muted">{desc}</p>}
-      </div>
-      <Toggle checked={checked} onChange={onChange} label={title} />
-    </div>
-  );
-}
-
 function Modal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -126,59 +110,55 @@ function Modal({ title, onClose, children }) {
 
 /* ------------------------------- page ------------------------------ */
 export default function SettingsPage() {
-  const [user, setUser] = useState({ name: "", email: "", role: "Student" });
-  const [profile, setProfile] = useState({
-    phone: "",
-    programme: "",
-    yearOfStudy: "",
-    studentId: "",
-  });
+  const [profile, setProfile] = useState(emptyProfile);
   const [active, setActive] = useState("profile");
 
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(profile);
+  const [draft, setDraft] = useState(emptyProfile);
+  const [editError, setEditError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const [pwOpen, setPwOpen] = useState(false);
   const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
   const [pwError, setPwError] = useState("");
   const [pwDone, setPwDone] = useState(false);
+  const [pwBusy, setPwBusy] = useState(false);
 
-  const [notif, setNotif] = useState({
-    mentorship: true,
-    internships: true,
-    events: true,
-    announcements: true,
-  });
-  const [privacy, setPrivacy] = useState({ showEmail: false, showPhone: false });
-
-  // The login page will save { name, email, role } as "user" in localStorage
   useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem("user"));
-      if (stored) {
-        setUser({
-          name: stored.name || "",
-          email: stored.email || "",
-          role: stored.role || "Student",
-        });
-      }
-    } catch {}
+    api("/student/profile")
+      .then(setProfile)
+      .catch((err) => console.warn(err.message));
   }, []);
-
-  // Profile completion: the dashboard's % will use the same idea
-  const fields = Object.values(profile);
-  const completion = Math.round((fields.filter(Boolean).length / fields.length) * 100);
 
   const openEdit = () => {
     setDraft(profile);
+    setEditError("");
     setEditing(true);
   };
 
-  const saveProfile = (e) => {
+  const saveProfile = async (e) => {
     e.preventDefault();
-    // TODO (backend phase): PUT /api/profile
-    setProfile(draft);
-    setEditing(false);
+    setEditError("");
+    setSaving(true);
+    try {
+      const updated = await api("/student/profile", {
+        method: "PUT",
+        body: JSON.stringify({
+          phone: draft.phone,
+          dzongkhag: draft.dzongkhag,
+          gewog: draft.gewog,
+          projects: draft.projects,
+          technicalSkills: draft.technicalSkills,
+          softSkills: draft.softSkills,
+        }),
+      });
+      setProfile(updated);
+      setEditing(false);
+    } catch (err) {
+      setEditError(err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const openPassword = () => {
@@ -188,19 +168,36 @@ export default function SettingsPage() {
     setPwOpen(true);
   };
 
-  const changePassword = (e) => {
+  const changePassword = async (e) => {
     e.preventDefault();
     if (pw.next.length < 8) return setPwError("New password must be at least 8 characters.");
     if (pw.next !== pw.confirm) return setPwError("Passwords do not match.");
-    // TODO (backend phase): POST /api/auth/change-password
     setPwError("");
-    setPwDone(true);
+    setPwBusy(true);
+    try {
+      await api("/student/change-password", {
+        method: "POST",
+        body: JSON.stringify({ current: pw.current, next: pw.next }),
+      });
+      setPwDone(true);
+    } catch (err) {
+      setPwError(err.message);
+    } finally {
+      setPwBusy(false);
+    }
   };
 
   const goTo = (id) => {
     setActive(id);
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
+  const isActive = ["Active", "Approved"].includes(profile.accountStatus);
+  const location = [profile.gewog, profile.dzongkhag].filter(Boolean).join(", ");
+  const dzongkhagOptions =
+    draft.dzongkhag && !DZONGKHAGS.includes(draft.dzongkhag)
+      ? [draft.dzongkhag, ...DZONGKHAGS]
+      : DZONGKHAGS;
 
   return (
     <div>
@@ -211,7 +208,7 @@ export default function SettingsPage() {
         </div>
         <div>
           <h1 className="text-3xl font-bold text-sidebar">Settings</h1>
-          <p className="text-sm text-muted">Manage your account preferences and portal settings.</p>
+          <p className="text-sm text-muted">Manage your account and profile.</p>
         </div>
       </div>
 
@@ -272,39 +269,63 @@ export default function SettingsPage() {
           >
             <div className="flex flex-wrap items-start gap-8">
               <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-sidebar text-3xl font-semibold text-white">
-                {user.name ? initials(user.name) : "?"}
+                {profile.name ? initials(profile.name) : "?"}
               </div>
 
               <div className="min-w-72 flex-1">
                 <div className="mb-4 flex flex-wrap items-center gap-3">
-                  <h3 className="text-xl font-bold text-sidebar">{user.name || "Your name"}</h3>
+                  <h3 className="text-xl font-bold text-sidebar">{profile.name || "Your name"}</h3>
                   <span className="rounded-full bg-blue-100 px-3 py-0.5 text-xs font-medium text-primary">
-                    {user.role}
+                    {profile.role}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div className="space-y-3">
-                    <InfoRow icon={Mail} value={user.email} />
+                    <InfoRow icon={Mail} value={profile.email} />
                     <InfoRow icon={Phone} value={profile.phone} />
+                    <InfoRow icon={MapPin} value={location} />
                     <InfoRow icon={Building2} value="College of Science and Technology (CST)" />
                   </div>
                   <div className="space-y-3">
                     <InfoRow icon={GraduationCap} value={profile.programme} />
-                    <InfoRow icon={CalendarDays} value={profile.yearOfStudy && `Year of Study: ${profile.yearOfStudy}`} />
+                    <InfoRow icon={CalendarDays} value={profile.joinYear && `Joined: ${profile.joinYear}`} />
                     <InfoRow icon={IdCard} value={profile.studentId && `Student ID: ${profile.studentId}`} />
                   </div>
                 </div>
 
+                {(profile.technicalSkills || profile.softSkills || profile.projects) && (
+                  <div className="mt-5 space-y-3 border-t border-gray-100 pt-4 text-sm">
+                    {profile.technicalSkills && (
+                      <p className="whitespace-pre-line">
+                        <span className="font-medium text-sidebar">Technical skills: </span>
+                        <span className="text-text">{profile.technicalSkills}</span>
+                      </p>
+                    )}
+                    {profile.softSkills && (
+                      <p className="whitespace-pre-line">
+                        <span className="font-medium text-sidebar">Soft skills: </span>
+                        <span className="text-text">{profile.softSkills}</span>
+                      </p>
+                    )}
+                    {profile.projects && (
+                      <p className="whitespace-pre-line">
+                        <span className="font-medium text-sidebar">Projects: </span>
+                        <span className="text-text">{profile.projects}</span>
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="mt-5">
                   <div className="mb-1 flex justify-between text-xs text-muted">
                     <span>Profile completed</span>
-                    <span>{completion}%</span>
+                    <span>{profile.completion}%</span>
                   </div>
                   <div className="h-2 rounded-full bg-gray-100">
                     <div
                       className="h-2 rounded-full bg-primary transition-all"
-                      style={{ width: `${completion}%` }}
+                      style={{ width: `${profile.completion}%` }}
                     />
                   </div>
                 </div>
@@ -318,11 +339,21 @@ export default function SettingsPage() {
               <div className="min-w-60 flex-1">
                 <p className="flex items-center gap-3 text-sm font-medium text-sidebar">
                   Account Status
-                  <span className="rounded-full bg-green-100 px-3 py-0.5 text-xs font-medium text-success">
-                    Active
-                  </span>
+                  {profile.accountStatus && (
+                    <span
+                      className={`rounded-full px-3 py-0.5 text-xs font-medium ${
+                        isActive ? "bg-green-100 text-success" : "bg-orange-100 text-warning"
+                      }`}
+                    >
+                      {profile.accountStatus}
+                    </span>
+                  )}
                 </p>
-                <p className="mt-1 text-sm text-muted">Your account is active and in good standing.</p>
+                <p className="mt-1 text-sm text-muted">
+                  {isActive
+                    ? "Your account is active and in good standing."
+                    : "Your account is not fully active yet."}
+                </p>
               </div>
 
               <div className="flex flex-1 flex-wrap items-center gap-4 border-gray-200 md:border-l md:pl-6">
@@ -341,70 +372,21 @@ export default function SettingsPage() {
             </div>
           </Panel>
 
-          {/* Notifications */}
-          <Panel
-            id="notifications"
-            icon={Bell}
-            title="Notification Settings"
-            subtitle="Choose which in-app updates you want to receive."
-          >
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <ToggleRow
-                icon={Users}
-                title="Mentorship Updates"
-                desc="When a mentor answers your request"
-                checked={notif.mentorship}
-                onChange={(v) => setNotif({ ...notif, mentorship: v })}
-              />
-              <ToggleRow
-                icon={Briefcase}
-                title="Internship Updates"
-                desc="New internships and application status"
-                checked={notif.internships}
-                onChange={(v) => setNotif({ ...notif, internships: v })}
-              />
-              <ToggleRow
-                icon={CalendarDays}
-                title="Events & Workshops"
-                desc="New events and reminders"
-                checked={notif.events}
-                onChange={(v) => setNotif({ ...notif, events: v })}
-              />
-              <ToggleRow
-                icon={Megaphone}
-                title="General Announcements"
-                desc="News from CST staff and administration"
-                checked={notif.announcements}
-                onChange={(v) => setNotif({ ...notif, announcements: v })}
-              />
-            </div>
-          </Panel>
-
-          {/* Privacy */}
+          {/* Privacy (information only) */}
           <Panel
             id="privacy"
             icon={Lock}
-            title="Privacy Settings"
-            subtitle="Control what information is visible to other users."
+            title="Privacy"
+            subtitle="How your information is shared on the portal."
           >
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <ToggleRow
-                icon={Mail}
-                title="Show my email on my profile"
-                checked={privacy.showEmail}
-                onChange={(v) => setPrivacy({ ...privacy, showEmail: v })}
-              />
-              <ToggleRow
-                icon={Phone}
-                title="Show my phone number"
-                checked={privacy.showPhone}
-                onChange={(v) => setPrivacy({ ...privacy, showPhone: v })}
-              />
-            </div>
-            <p className="mt-3 text-xs text-muted">
-              Both are off by default. Your contact details are only shared with a mentor after they
-              accept your request.
-            </p>
+            <ul className="space-y-2 text-sm text-text">
+              <li>
+                Your contact email is shared with a mentor only after they accept your mentorship
+                request.
+              </li>
+              <li>You can see your own mentorship, internship and event activity under My Applications.</li>
+              <li>Your password is stored securely and is never visible to anyone, including staff.</li>
+            </ul>
           </Panel>
         </div>
       </div>
@@ -415,60 +397,90 @@ export default function SettingsPage() {
           <form onSubmit={saveProfile} className="space-y-4">
             <div>
               <label className="mb-1 block text-sm text-text">Name</label>
-              <input value={user.name} disabled className={`${inputStyle} bg-gray-50 text-muted`} />
+              <input value={profile.name} disabled className={`${inputStyle} bg-gray-50 text-muted`} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-text">Email</label>
-              <input value={user.email} disabled className={`${inputStyle} bg-gray-50 text-muted`} />
-              <p className="mt-1 text-xs text-muted">Your CST email can&apos;t be changed.</p>
+              <input value={profile.email} disabled className={`${inputStyle} bg-gray-50 text-muted`} />
+              <p className="mt-1 text-xs text-muted">
+                Name, email, programme and student ID were verified at signup and can&apos;t be
+                changed here.
+              </p>
             </div>
             <div>
               <label className="mb-1 block text-sm text-text">Phone number</label>
               <input
                 value={draft.phone}
-                onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
-                placeholder="+975 17 123456"
+                onChange={(e) => setDraft({ ...draft, phone: e.target.value.replace(/\D/g, "") })}
+                placeholder="8 digits, e.g. 17123456"
+                maxLength={8}
+                inputMode="numeric"
+                className={inputStyle}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-sm text-text">Dzongkhag</label>
+                <select
+                  value={draft.dzongkhag}
+                  onChange={(e) => setDraft({ ...draft, dzongkhag: e.target.value })}
+                  className={inputStyle}
+                >
+                  <option value="">Select</option>
+                  {dzongkhagOptions.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-text">Gewog</label>
+                <input
+                  value={draft.gewog}
+                  onChange={(e) => setDraft({ ...draft, gewog: e.target.value })}
+                  maxLength={20}
+                  className={inputStyle}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-text">Technical skills</label>
+              <textarea
+                value={draft.technicalSkills}
+                onChange={(e) => setDraft({ ...draft, technicalSkills: e.target.value })}
+                rows={2}
+                placeholder="e.g. React, Node.js, MySQL"
                 className={inputStyle}
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-text">Programme</label>
-              <input
-                value={draft.programme}
-                onChange={(e) => setDraft({ ...draft, programme: e.target.value })}
-                placeholder="e.g. B.E. Software Engineering"
+              <label className="mb-1 block text-sm text-text">Soft skills</label>
+              <textarea
+                value={draft.softSkills}
+                onChange={(e) => setDraft({ ...draft, softSkills: e.target.value })}
+                rows={2}
+                placeholder="e.g. Teamwork, communication"
                 className={inputStyle}
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-text">Year of study</label>
-              <select
-                value={draft.yearOfStudy}
-                onChange={(e) => setDraft({ ...draft, yearOfStudy: e.target.value })}
-                className={inputStyle}
-              >
-                <option value="">Select year</option>
-                {yearOptions.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-text">Student ID</label>
-              <input
-                value={draft.studentId}
-                onChange={(e) => setDraft({ ...draft, studentId: e.target.value })}
-                placeholder="Your student number"
+              <label className="mb-1 block text-sm text-text">Projects</label>
+              <textarea
+                value={draft.projects}
+                onChange={(e) => setDraft({ ...draft, projects: e.target.value })}
+                rows={3}
+                placeholder="Projects you have worked on"
                 className={inputStyle}
               />
             </div>
+            {editError && <p className="text-sm text-danger">{editError}</p>}
             <button
               type="submit"
-              className="w-full rounded-lg bg-primary py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+              disabled={saving}
+              className="w-full rounded-lg bg-primary py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
             >
-              Save Changes
+              {saving ? "Saving..." : "Save Changes"}
             </button>
           </form>
         </Modal>
@@ -522,9 +534,10 @@ export default function SettingsPage() {
               {pwError && <p className="text-sm text-danger">{pwError}</p>}
               <button
                 type="submit"
-                className="w-full rounded-lg bg-primary py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+                disabled={pwBusy}
+                className="w-full rounded-lg bg-primary py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
               >
-                Update Password
+                {pwBusy ? "Updating..." : "Update Password"}
               </button>
             </form>
           )}

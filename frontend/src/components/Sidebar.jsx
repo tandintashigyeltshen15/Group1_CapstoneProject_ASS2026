@@ -54,6 +54,7 @@ const staffNavItems = [
   { label: "Opportunities", href: "/staff/opportunities", icon: Briefcase },
   { label: "Events", href: "/staff/events", icon: CalendarDays },
   { label: "Announcements", href: "/staff/announcements", icon: Megaphone },
+  { label: "Contributions", href: "/staff/contributions", icon: HandHeart },
   { label: "Reports", href: "/staff/reports", icon: BarChart3 },
   { label: "Settings", href: "/staff/settings", icon: Settings },
   { label: "Notifications", href: "/staff/notifications", icon: Bell },
@@ -98,7 +99,7 @@ export default function Sidebar({ role = "Student" }) {
         </span>
       </div>
 
-      <nav className="flex flex-col gap-1 flex-1">
+      <nav className="flex flex-col gap-1 flex-1 overflow-y-auto">
         {navItems.map(({ label, href, icon: Icon }) => {
           const active =
             pathname === href || pathname.startsWith(href + "/");

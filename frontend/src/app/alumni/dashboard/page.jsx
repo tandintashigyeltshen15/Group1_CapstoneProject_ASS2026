@@ -1,11 +1,23 @@
 ﻿"use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { api } from "@/lib/api";
 import {
-  UserRound, CalendarDays, Briefcase, ClipboardList, ChevronRight, ArrowRight,
-  MapPin, Clock, Megaphone, Zap, Users, Heart,
+  UserRound, Users, CalendarDays, ClipboardList, Briefcase, ChevronRight, ArrowRight,
+  MapPin, Clock, Zap, Plus, HandHeart,
 } from "lucide-react";
-import { useStore, formatDate } from "@/lib/store";
+
+const fmtDate = (d) =>
+  d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "";
+
+const emptyData = {
+  name: "",
+  stats: { profileCompletion: 0, pendingMentorship: 0, upcomingEvents: 0, registeredUpcoming: 0, newApplications: 0 },
+  upcomingEventList: [],
+  postings: [],
+  requests: [],
+};
 
 function Panel({ icon: Icon, title, href, children }) {
   return (
@@ -26,9 +38,7 @@ function Panel({ icon: Icon, title, href, children }) {
   );
 }
 
-function EmptyState({ message }) {
-  return <p className="py-8 text-center text-sm text-muted">{message}</p>;
-}
+const Empty = ({ message }) => <p className="py-8 text-center text-sm text-muted">{message}</p>;
 
 function StatCard({ icon: Icon, label, value, caption, href, iconStyle }) {
   return (
@@ -62,54 +72,47 @@ function QuickAction({ icon: Icon, label, href }) {
   );
 }
 
-export default function DashboardPage() {
-  const [profile] = useStore("profile");
-  const [career] = useStore("career");
-  const [publications] = useStore("publications");
-  const [projects] = useStore("projects");
-  const [contributions] = useStore("contributions");
-  const [mentorship] = useStore("mentorship");
-  const [opportunities] = useStore("opportunities");
-  const [applications] = useStore("applications");
-  const [events] = useStore("events");
-  const [registrations] = useStore("registrations");
-  const [notifications] = useStore("notifications");
+export default function AlumniDashboardPage() {
+  const [data, setData] = useState(emptyData);
+  const [loaded, setLoaded] = useState(false);
 
-  // profile completion: 5 info fields + 4 sections
-  const checks = [
-    profile.name, profile.professionalBackground, profile.areaOfExpertise, profile.phone, profile.programme,
-    career.length, publications.length, projects.length, contributions.length,
-  ];
-  const completion = Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  useEffect(() => {
+    api("/alumni-dashboard")
+      .then((d) => {
+        setData(d);
+        setLoaded(true);
+      })
+      .catch((err) => {
+        console.warn(err.message);
+        setLoaded(true);
+      });
+  }, []);
 
-  const now = new Date();
-  const upcoming = events
-    .filter((e) => e.status === "Published" && new Date(e.dateTime) >= now)
-    .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
-  const pending = mentorship.filter((m) => m.status === "Pending").length;
-  const openOpps = opportunities.filter((o) => o.status === "Open");
-  const newApplicants = applications.filter((a) => a.applicationStatus === "Submitted").length;
-  const unread = notifications.filter((n) => !n.isRead);
+  const { stats, upcomingEventList, postings, requests } = data;
+  const firstName = data.name ? data.name.split(" ")[0] : "";
+  const loading = (text) => (loaded ? text : "Loading...");
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-sidebar">Welcome back, {profile.name.split(" ")[0]}</h1>
+      <h1 className="text-3xl font-bold text-sidebar">
+        Welcome back{firstName ? `, ${firstName}` : ""}
+      </h1>
       <p className="mb-6 text-muted">Here&apos;s what&apos;s happening at CST.</p>
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={UserRound} label="My Profile" value={`${completion}%`} caption="Profile Completed" href="/alumni/profile" iconStyle="bg-blue-100 text-primary" />
-        <StatCard icon={Users} label="Mentorship Requests" value={pending} caption="Waiting for your reply" href="/alumni/mentorship" iconStyle="bg-purple-100 text-accent" />
-        <StatCard icon={CalendarDays} label="Upcoming Events" value={upcoming.length} caption={`${registrations.length} registered`} href="/alumni/events" iconStyle="bg-green-100 text-success" />
-        <StatCard icon={ClipboardList} label="New Applications" value={newApplicants} caption="To review" href="/alumni/applications" iconStyle="bg-orange-100 text-warning" />
+        <StatCard icon={UserRound} label="My Profile" value={`${stats.profileCompletion}%`} caption="Profile Completed" href="/alumni/profile" iconStyle="bg-blue-100 text-primary" />
+        <StatCard icon={Users} label="Mentorship Requests" value={stats.pendingMentorship} caption="Waiting for your reply" href="/alumni/mentorship" iconStyle="bg-purple-100 text-accent" />
+        <StatCard icon={CalendarDays} label="Upcoming Events" value={stats.upcomingEvents} caption={`${stats.registeredUpcoming} registered`} href="/alumni/events" iconStyle="bg-green-100 text-success" />
+        <StatCard icon={ClipboardList} label="New Applications" value={stats.newApplications} caption="To review" href="/alumni/applications" iconStyle="bg-orange-100 text-warning" />
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Panel icon={CalendarDays} title="Upcoming Events" href="/alumni/events">
-          {upcoming.length === 0 ? (
-            <EmptyState message="No upcoming events yet." />
+          {upcomingEventList.length === 0 ? (
+            <Empty message={loading("No upcoming events.")} />
           ) : (
             <ul className="divide-y divide-gray-100">
-              {upcoming.slice(0, 3).map((e) => {
+              {upcomingEventList.map((e) => {
                 const d = new Date(e.dateTime);
                 return (
                   <li key={e.id} className="flex items-center gap-4 py-3">
@@ -121,13 +124,15 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex-1">
                       <p className="font-medium text-sidebar">{e.title}</p>
-                      <p className="flex items-center gap-1 text-xs text-muted"><MapPin size={12} /> {e.venue}</p>
+                      {e.venue && (
+                        <p className="flex items-center gap-1 text-xs text-muted"><MapPin size={12} /> {e.venue}</p>
+                      )}
                       <p className="flex items-center gap-1 text-xs text-muted">
                         <Clock size={12} /> {d.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit" })}
                       </p>
                     </div>
-                    {registrations.some((r) => r.eventId === e.id) && (
-                      <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-success">Registered</span>
+                    {e.registered && (
+                      <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-success">Registered</span>
                     )}
                   </li>
                 );
@@ -137,24 +142,36 @@ export default function DashboardPage() {
         </Panel>
 
         <Panel icon={Briefcase} title="My Internship Postings" href="/alumni/internships">
-          {openOpps.length === 0 ? (
-            <EmptyState message="No open internships. Post one from Internship Postings." />
+          {postings.length === 0 ? (
+            <Empty message={loading("You haven't posted any opportunities yet.")} />
           ) : (
             <ul className="divide-y divide-gray-100">
-              {openOpps.slice(0, 3).map((i) => (
-                <li key={i.id} className="flex items-center gap-4 py-3">
+              {postings.map((o) => (
+                <li key={o.id} className="flex items-center gap-4 py-3">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-primary">
                     <Briefcase size={22} />
                   </div>
                   <div className="flex-1">
-                    <p className="font-medium text-sidebar">{i.title}</p>
-                    <p className="text-xs text-muted">{i.organization}</p>
-                    <span className="mt-1 inline-block rounded bg-gray-100 px-2 py-0.5 text-[11px] text-text">{i.duration}</span>
+                    <p className="font-medium text-sidebar">{o.title}</p>
+                    <p className="text-xs text-muted">{o.organization}</p>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {o.duration && (
+                        <span className="rounded bg-gray-100 px-2 py-0.5 text-[11px] text-text">{o.duration}</span>
+                      )}
+                      <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] text-primary">
+                        {o.applications} applicant{o.applications === 1 ? "" : "s"}
+                      </span>
+                      {o.status !== "Open" && (
+                        <span className="rounded bg-gray-100 px-2 py-0.5 text-[11px] text-muted">{o.status}</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right text-xs">
-                    <p className="text-warning">Apply by</p>
-                    <p className="font-semibold text-danger">{formatDate(i.deadline)}</p>
-                  </div>
+                  {o.deadline && (
+                    <div className="text-right text-xs">
+                      <p className="text-warning">Apply by</p>
+                      <p className="font-semibold text-danger">{fmtDate(o.deadline)}</p>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -163,16 +180,19 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Panel icon={Megaphone} title="Recent Notifications" href="/alumni/notifications">
-          {unread.length === 0 ? (
-            <EmptyState message="You're all caught up." />
+        <Panel icon={Users} title="Mentorship Requests" href="/alumni/mentorship">
+          {requests.length === 0 ? (
+            <Empty message={loading("No requests are waiting for your reply.")} />
           ) : (
             <ul className="divide-y divide-gray-100">
-              {unread.slice(0, 4).map((n) => (
-                <li key={n.id} className="flex items-start gap-3 py-3">
-                  <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />
-                  <p className="flex-1 text-sm text-sidebar">{n.message}</p>
-                  <span className="text-xs text-muted">{formatDate(n.createdAt)}</span>
+              {requests.map((r) => (
+                <li key={r.id} className="flex items-center gap-4 py-3">
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-sidebar">{r.student}</p>
+                    <p className="text-xs text-muted">{r.subject}</p>
+                  </div>
+                  <span className="text-xs text-muted">{fmtDate(r.date)}</span>
                 </li>
               ))}
             </ul>
@@ -181,15 +201,13 @@ export default function DashboardPage() {
 
         <Panel icon={Zap} title="Quick Actions">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <QuickAction icon={Plus} label="Post Opportunity" href="/alumni/internships" />
             <QuickAction icon={UserRound} label="Update Profile" href="/alumni/profile" />
-            <QuickAction icon={Heart} label="Add Contribution" href="/alumni/contributions" />
-            <QuickAction icon={Briefcase} label="Post Internship" href="/alumni/internships" />
-            <QuickAction icon={Users} label="Review Mentorship" href="/alumni/mentorship" />
-            <QuickAction icon={CalendarDays} label="Register for Events" href="/alumni/events" />
+            <QuickAction icon={CalendarDays} label="View Events" href="/alumni/events" />
+            <QuickAction icon={HandHeart} label="Contribute" href="/alumni/contributions" />
           </div>
         </Panel>
       </div>
     </div>
   );
 }
-

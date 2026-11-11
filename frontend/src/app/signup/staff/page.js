@@ -108,8 +108,8 @@ export default function StaffSignupPage() {
       <div className="max-w-6xl mx-auto px-10 pb-16">
         <div className="flex border border-gray-300 rounded-2xl overflow-hidden">
           {/* Left panel */}
-          <div className="relative w-[315px] shrink-0 bg-[#071D3B] text-white flex flex-col">
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-8 pt-10 relative z-10">
+          <div className="relative flex w-[315px] shrink-0 flex-col bg-[#071D3B] text-white">
+            <div className="relative z-10 flex flex-col items-center px-8 pt-12 text-center">
               <div className="bg-[#2A1B4D] rounded-full w-20 h-20 flex items-center justify-center mb-5">
                 <Building2 className="text-[#A78BFA]" size={32} strokeWidth={1.75} />
               </div>
@@ -120,13 +120,19 @@ export default function StaffSignupPage() {
               </p>
             </div>
 
+            {/* Curved campus photo: sits right under the text and fills the rest of the panel */}
             <div
-              className="relative h-56 w-full"
-              style={{ clipPath: "ellipse(70% 55% at 50% 100%)" }}
+              className="relative mt-10 min-h-56 flex-1"
+              style={{ clipPath: "ellipse(75% 100% at 50% 100%)" }}
             >
-              <Image src="/campus.jpg" alt="CST Campus" fill className="object-cover" />
+              <Image
+                src="/campus.jpg"
+                alt="CST Campus"
+                fill
+                sizes="315px"
+                className="object-cover"
+              />
             </div>
-            <div className="absolute inset-0 -z-10 bg-[#071D3B]" />
           </div>
 
           {/* Right form */}

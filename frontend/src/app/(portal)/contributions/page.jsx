@@ -1,348 +1,296 @@
 "use client";
 
-import { useState } from "react";
-import { Heart, Users, CalendarDays, Megaphone, TrendingUp, Clock, Check, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
+import {
+  Heart, Clock, Check, Users, Megaphone, TrendingUp, CalendarDays, Search, X,
+} from "lucide-react";
 
-/* ------------------------------------------------------------------
-   DATA (temporary): empty for now. Later, fetch from the backend.
-   Staff and alumni will create initiatives from their own page.
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-   initiatives: {
-     id, title, description,
-     type: "Volunteering" | "Resources" | "Mentoring" | "Other",
-     startsAt: "2026-10-01", endsAt: "2026-10-31",
-     goal: 75,            // people needed (optional)
-     participants: 47,    // how many have already joined
-     postedBy: "CST Alumni Association"
-   }
-   recent: { id, name, label: "Alumni · Class of 2021", joinedAt: "2026-10-12" }
-     (only people who agreed to be shown publicly)
-------------------------------------------------------------------- */
-const initiatives = [];
-const recent = [];
+const tabs = ["All", "Open", "Completed", "Closed"];
 
-const tabs = ["All Initiatives", "Ongoing", "Completed", "My Contributions"];
-const DAY = 86400000;
+const STATUS_STYLE = {
+  Open: "bg-green-100 text-success",
+  Completed: "bg-blue-100 text-primary",
+  Closed: "bg-gray-100 text-muted",
+};
 
-const isOpen = (i) => new Date(i.endsAt).getTime() + DAY > Date.now();
-const fmt = (d) =>
-  new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-const initials = (name) =>
-  name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+const fmtDate = (d) =>
+  d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "-";
+
+const money = (n) => `Nu. ${Number(n || 0).toLocaleString("en-IN")}`;
+
+const emptyData = {
+  stats: { totalRaised: 0, activeRequests: 0, completedRequests: 0, supporters: 0 },
+  campaigns: [],
+  recent: [],
+};
 
 /* ----------------------------- pieces ----------------------------- */
-function StatusPill({ open }) {
+function StatusBadge({ status }) {
   return (
-    <span
-      className={`rounded-full px-3 py-1 text-xs font-medium text-white ${
-        open ? "bg-primary" : "bg-muted"
-      }`}
-    >
-      {open ? "Ongoing" : "Completed"}
+    <span className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_STYLE[status] || STATUS_STYLE.Closed}`}>
+      {status}
     </span>
   );
 }
 
-function ProgressBar({ value, goal, done }) {
-  if (!goal) return null;
-  const pct = Math.min(100, Math.round((value / goal) * 100));
+function Progress({ value }) {
   return (
-    <div className="mt-3 flex items-center gap-3">
-      <div className="h-2 flex-1 rounded-full bg-gray-100">
-        <div
-          className={`h-2 rounded-full ${done ? "bg-muted" : "bg-primary"}`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <span className="w-28 text-right text-xs font-medium text-text">{pct}% joined</span>
+    <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100" role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={100}>
+      <div className="h-full rounded-full bg-success" style={{ width: `${value}%` }} />
     </div>
   );
 }
 
-function Modal({ title, onClose, children }) {
+function Stat({ icon: Icon, value, label, tone }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <h3 className="text-lg font-semibold text-sidebar">{title}</h3>
-          <button onClick={onClose}>
-            <X size={18} className="text-muted" />
-          </button>
+    <div className="flex flex-col items-center rounded-xl bg-gray-50 py-6">
+      <Icon size={22} className={tone} />
+      <p className="mt-2 text-2xl font-bold text-sidebar">{value}</p>
+      <p className="text-sm text-muted">{label}</p>
+    </div>
+  );
+}
+
+function CampaignCard({ c, onOpen }) {
+  return (
+    <div className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      {c.imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={`${API}${c.imageUrl}`} alt="" className="h-36 w-full object-cover" />
+      ) : (
+        <div className="flex h-36 items-center justify-center bg-linear-to-br from-sidebar to-primary text-white/80">
+          <Megaphone size={36} />
         </div>
-        {children}
-      </div>
-    </div>
-  );
-}
+      )}
+      <div className="flex flex-1 flex-col p-5">
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <h3 className="font-semibold text-sidebar">{c.title}</h3>
+          <StatusBadge status={c.displayStatus} />
+        </div>
+        <span className="mb-2 w-fit rounded bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-primary">{c.category}</span>
+        <p className="line-clamp-2 text-sm text-muted">{c.description}</p>
 
-function ImpactCell({ icon: Icon, value, label, tone }) {
-  return (
-    <div className="flex flex-col items-center gap-1 rounded-xl border border-gray-100 bg-gray-50 py-5">
-      <Icon size={20} className={tone} />
-      <p className="text-2xl font-bold text-sidebar">{value}</p>
-      <p className="text-center text-xs text-muted">{label}</p>
+        <div className="mt-4">
+          <Progress value={c.percent} />
+          <div className="mt-1.5 flex items-center justify-between text-xs">
+            <span className="text-sidebar">{money(c.raised)} of {money(c.target)}</span>
+            <span className="font-semibold text-success">{c.percent}%</span>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+          <span className="flex items-center gap-1"><CalendarDays size={12} /> {fmtDate(c.deadline)}</span>
+          <span className="flex items-center gap-1"><Users size={12} /> {c.contributors} contributor{c.contributors === 1 ? "" : "s"}</span>
+        </div>
+
+        <button
+          onClick={() => onOpen(c)}
+          className="mt-auto pt-4 text-left text-sm font-medium text-primary hover:underline"
+        >
+          View Details
+        </button>
+      </div>
     </div>
   );
 }
 
 /* ------------------------------- page ------------------------------ */
 export default function ContributionsPage() {
-  const [tab, setTab] = useState("All Initiatives");
-  const [sort, setSort] = useState("latest");
-  const [joinedIds, setJoinedIds] = useState([]);
+  const [data, setData] = useState(emptyData);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState("");
+  const [tab, setTab] = useState("All");
+  const [category, setCategory] = useState("All");
+  const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
 
-  const joined = (id) => joinedIds.includes(id);
-  const count = (i) => (i.participants || 0) + (joined(i.id) ? 1 : 0);
+  useEffect(() => {
+    api("/contributions")
+      .then((d) =>
+        setData({
+          stats: d.stats ?? emptyData.stats,
+          campaigns: d.campaigns ?? [],
+          recent: d.recent ?? [],
+        })
+      )
+      .catch((err) => setError(err.message))
+      .finally(() => setLoaded(true));
+  }, []);
 
-  const toggleJoin = (id) => {
-    // TODO (backend phase): POST / DELETE /api/initiatives/:id/join
-    setJoinedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  };
+  const { stats, campaigns, recent } = data;
+  const categories = [...new Set(campaigns.map((c) => c.category))].sort();
 
-  const list = initiatives
-    .filter((i) => {
-      if (tab === "Ongoing") return isOpen(i);
-      if (tab === "Completed") return !isOpen(i);
-      if (tab === "My Contributions") return joined(i.id);
-      return true;
-    })
-    .sort((a, b) =>
-      sort === "latest"
-        ? new Date(b.startsAt) - new Date(a.startsAt)
-        : new Date(a.endsAt) - new Date(b.endsAt)
-    );
+  const q = search.trim().toLowerCase();
+  const filtered = campaigns.filter(
+    (c) =>
+      (tab === "All" || c.displayStatus === tab) &&
+      (category === "All" || c.category === category) &&
+      (!q || c.title.toLowerCase().includes(q))
+  );
 
-  const mine = initiatives.filter((i) => joined(i.id));
-  const mineCompleted = mine.filter((i) => !isOpen(i)).length;
-
-  const emptyMessage =
-    tab === "My Contributions"
-      ? "You haven't joined any initiatives yet."
-      : initiatives.length === 0
-      ? "No initiatives yet. Staff and alumni will post them here."
-      : "Nothing here yet.";
-
-  const sel = selected && initiatives.find((i) => i.id === selected);
+  const countFor = (t) => (t === "All" ? campaigns.length : campaigns.filter((c) => c.displayStatus === t).length);
 
   return (
-    <div>
+    <div className="space-y-6">
       {/* Header */}
-      <div className="mb-6 flex items-center gap-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center gap-5 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-primary">
           <Heart size={30} />
         </div>
         <div>
           <h1 className="text-3xl font-bold text-sidebar">Contributions</h1>
-          <p className="text-sm text-muted">
-            Give back with your time, skills and resources. Build a stronger CST community together.
+          <p className="text-muted">
+            See how CST staff and alumni are supporting the college and its students.
           </p>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="mb-6 flex flex-wrap gap-3">
+      {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-danger">{error}</p>}
+
+      {/* Impact */}
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-sidebar">
+          <TrendingUp size={20} className="text-primary" /> Community Contribution Impact
+        </h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <Stat icon={Heart} value={money(stats.totalRaised)} label="Total Contributions" tone="text-primary" />
+          <Stat icon={Clock} value={stats.activeRequests} label="Active Requests" tone="text-warning" />
+          <Stat icon={Check} value={stats.completedRequests} label="Completed" tone="text-success" />
+          <Stat icon={Users} value={stats.supporters} label="Supporters" tone="text-accent" />
+        </div>
+      </div>
+
+      {/* Tabs + filters */}
+      <div className="flex flex-wrap items-center gap-3">
         {tabs.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`rounded-full px-6 py-2.5 text-sm font-medium transition-colors ${
+            className={`rounded-full px-5 py-2.5 text-sm font-medium transition-colors ${
               tab === t ? "bg-primary text-white" : "bg-blue-50 text-text hover:bg-blue-100"
             }`}
           >
-            {t}
+            {t} ({countFor(t)})
           </button>
         ))}
+        <div className="ml-auto flex flex-wrap items-center gap-3">
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search requests..."
+              className="w-52 rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-text outline-none focus:border-primary"
+            />
+          </div>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-text outline-none focus:border-primary"
+            aria-label="Filter by category"
+          >
+            <option value="All">All categories</option>
+            {categories.map((c) => <option key={c}>{c}</option>)}
+          </select>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_22rem]">
-        {/* Initiatives */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-start justify-between gap-4">
-            <div>
-              <h2 className="flex items-center gap-2 text-lg font-semibold text-sidebar">
-                <Megaphone size={20} className="text-primary" /> Contribution Initiatives
-              </h2>
-              <p className="mt-1 text-sm text-muted">
-                Join initiatives posted by staff and alumni to uplift the CST community.
-              </p>
-            </div>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-              className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-text outline-none focus:border-primary"
-            >
-              <option value="latest">Latest First</option>
-              <option value="ending">Ending Soon</option>
-            </select>
-          </div>
-
-          {list.length === 0 ? (
-            <p className="py-12 text-center text-sm text-muted">{emptyMessage}</p>
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {list.map((i) => {
-                const open = isOpen(i);
-                return (
-                  <div key={i.id} className="flex flex-wrap items-center gap-5 py-5">
-                    <div className="relative flex h-32 w-44 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-sidebar to-primary text-white/80">
-                      <Heart size={36} />
-                      <span className="absolute left-2 top-2">
-                        <StatusPill open={open} />
-                      </span>
-                    </div>
-
-                    <div className="min-w-56 flex-1">
-                      <h3 className="font-semibold text-sidebar">{i.title}</h3>
-                      {i.description && (
-                        <p className="mt-1 line-clamp-2 text-sm text-muted">{i.description}</p>
-                      )}
-                      <p className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-text">
-                        <span className="flex items-center gap-1.5">
-                          <CalendarDays size={14} className="text-muted" />
-                          {open ? "Ends" : "Ended"}: {fmt(i.endsAt)}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <Users size={14} className="text-muted" /> {count(i)} joined
-                        </span>
-                        {i.type && (
-                          <span className="rounded-full bg-blue-50 px-3 py-0.5 text-xs text-primary">
-                            {i.type}
-                          </span>
-                        )}
-                      </p>
-                      <ProgressBar value={count(i)} goal={i.goal} done={!open} />
-                    </div>
-
-                    <button
-                      onClick={() => setSelected(i.id)}
-                      className={`rounded-lg px-5 py-2 text-sm font-medium ${
-                        open
-                          ? "bg-primary text-white hover:bg-blue-700"
-                          : "border border-primary text-primary hover:bg-blue-50"
-                      }`}
-                    >
-                      View Details
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+      {/* Campaigns */}
+      {filtered.length === 0 ? (
+        <div className="rounded-xl border border-gray-200 bg-white py-14 text-center text-sm text-muted shadow-sm">
+          {!loaded
+            ? "Loading..."
+            : campaigns.length === 0
+            ? "No contribution requests yet. They appear here once the administration publishes them."
+            : "No requests match your filters."}
         </div>
-
-        {/* Right column */}
-        <div className="space-y-6">
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 flex items-center gap-2 font-semibold text-sidebar">
-              <TrendingUp size={20} className="text-primary" /> Your Contribution Impact
-            </h2>
-            <div className="grid grid-cols-2 gap-3">
-              <ImpactCell icon={Heart} value={mine.length} label="Initiatives Joined" tone="text-primary" />
-              <ImpactCell icon={Clock} value={mine.length - mineCompleted} label="Ongoing" tone="text-warning" />
-              <ImpactCell icon={Check} value={mineCompleted} label="Completed" tone="text-success" />
-              <ImpactCell
-                icon={Users}
-                value={initiatives.filter(isOpen).length}
-                label="Open Initiatives"
-                tone="text-accent"
-              />
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-3 flex items-center gap-2 font-semibold text-sidebar">
-              <Users size={18} className="text-primary" /> Recent Contributors
-            </h2>
-            {recent.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted">No contributors yet.</p>
-            ) : (
-              <ul className="divide-y divide-gray-100">
-                {recent.slice(0, 3).map((r) => (
-                  <li key={r.id} className="flex items-center gap-3 py-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-primary">
-                      {initials(r.name)}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-sidebar">{r.name}</p>
-                      <p className="text-xs text-muted">{r.label}</p>
-                    </div>
-                    <span className="text-xs text-muted">{fmt(r.joinedAt)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="flex h-36 flex-col items-center justify-center rounded-xl bg-linear-to-br from-sidebar to-primary p-6 text-center text-white">
-            <p className="text-lg italic">&ldquo;Together, we give back. Together, we grow.&rdquo;</p>
-            <p className="mt-1 text-xs text-white/80">– CST Alumni Community</p>
-          </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((c) => (
+            <CampaignCard key={c.id} c={c} onOpen={setSelected} />
+          ))}
         </div>
+      )}
+
+      {/* Recent contributions */}
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-sidebar">
+          <Users size={20} className="text-primary" /> Recent Contributions
+        </h2>
+        {recent.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted">No verified contributions yet.</p>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {recent.map((r) => (
+              <li key={r.id} className="flex items-center gap-4 py-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-primary">
+                  <Heart size={16} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-sidebar">{r.donor}</p>
+                  <p className="truncate text-xs text-muted">{r.campaign}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-sidebar">{money(r.amount)}</p>
+                  <p className="text-xs text-muted">{fmtDate(r.date)}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Banner */}
+      <div className="rounded-xl bg-linear-to-r from-sidebar to-primary px-6 py-12 text-center text-white">
+        <p className="text-2xl font-medium italic">&ldquo;Together, we give back. Together, we grow.&rdquo;</p>
+        <p className="mt-2 text-sm text-white/80">&ndash; CST Alumni Community</p>
       </div>
 
       {/* Details modal */}
-      {sel && (
-        <Modal title={sel.title} onClose={() => setSelected(null)}>
-          <div className="mb-3 flex items-center gap-3">
-            <StatusPill open={isOpen(sel)} />
-            {sel.type && (
-              <span className="rounded-full bg-blue-50 px-3 py-0.5 text-xs text-primary">{sel.type}</span>
-            )}
-          </div>
-          {sel.description && (
-            <p className="mb-4 whitespace-pre-line text-sm text-text">{sel.description}</p>
-          )}
-          <div className="mb-2 space-y-1 text-sm text-text">
-            {sel.startsAt && (
-              <p>
-                <span className="text-muted">Starts: </span>
-                {fmt(sel.startsAt)}
-              </p>
-            )}
-            <p>
-              <span className="text-muted">{isOpen(sel) ? "Ends: " : "Ended: "}</span>
-              {fmt(sel.endsAt)}
-            </p>
-            {sel.postedBy && (
-              <p>
-                <span className="text-muted">Organised by: </span>
-                {sel.postedBy}
-              </p>
-            )}
-            <p>
-              <span className="text-muted">Joined: </span>
-              {count(sel)}
-              {sel.goal ? ` of ${sel.goal} needed` : ""}
-            </p>
-          </div>
-          <ProgressBar value={count(sel)} goal={sel.goal} done={!isOpen(sel)} />
-
-          <div className="mt-5">
-            {!isOpen(sel) ? (
-              <p className="text-sm font-medium text-muted">This initiative has ended.</p>
-            ) : joined(sel.id) ? (
-              <div className="flex items-center gap-3">
-                <span className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-success py-2.5 text-sm font-medium text-success">
-                  <Check size={16} /> You have joined
-                </span>
-                <button
-                  onClick={() => toggleJoin(sel.id)}
-                  className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm text-muted hover:text-danger"
-                >
-                  Leave
-                </button>
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-sidebar">{selected.title}</h3>
+                <p className="text-sm text-muted">{selected.category}</p>
               </div>
-            ) : (
-              <button
-                onClick={() => toggleJoin(sel.id)}
-                className="w-full rounded-lg bg-primary py-2.5 text-sm font-medium text-white hover:bg-blue-700"
-              >
-                Join this initiative
-              </button>
-            )}
+              <div className="flex items-center gap-3">
+                <StatusBadge status={selected.displayStatus} />
+                <button onClick={() => setSelected(null)} aria-label="Close"><X size={18} className="text-muted" /></button>
+              </div>
+            </div>
+
+            <Progress value={selected.percent} />
+            <p className="mt-1.5 text-sm text-sidebar">
+              {money(selected.raised)} raised of {money(selected.target)} ·{" "}
+              <span className="font-semibold text-success">{selected.percent}%</span>
+            </p>
+
+            <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-xs text-muted">Deadline</p>
+                <p className="font-medium text-sidebar">{fmtDate(selected.deadline)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted">Contributors</p>
+                <p className="font-medium text-sidebar">{selected.contributors}</p>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <p className="mb-1 text-xs text-muted">About this request</p>
+              <p className="whitespace-pre-line text-sm text-text">{selected.description}</p>
+            </div>
+
+            <p className="mt-5 rounded-lg bg-blue-50 p-3 text-xs text-sidebar">
+              Contributions to these requests are made by CST staff and alumni. Students can follow the progress here.
+            </p>
           </div>
-        </Modal>
+        </div>
       )}
     </div>
   );

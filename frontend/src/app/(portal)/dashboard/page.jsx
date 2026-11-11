@@ -1,4 +1,8 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { api } from "@/lib/api";
 import {
   UserRound,
   CalendarDays,
@@ -12,24 +16,6 @@ import {
   Zap,
   Users,
 } from "lucide-react";
-
-/* ------------------------------------------------------------------
-   DATA (temporary)
-   For now everything is empty / 0. Later, replace these with data
-   fetched from the backend. The page below will update by itself.
-
-   events:        { id, title, date: "2026-09-25", time: "10:00 AM", location: "CST Campus" }
-   internships:   { id, title, company, tags: ["Internship", "Remote"], deadline: "2026-09-30" }
-   applications:  { id, ... }
-   announcements: { id, title, description, date: "2026-09-10" }
-------------------------------------------------------------------- */
-const profileCompletion = 0; // 0-100, becomes 100 when the profile is fully filled
-const events = [
-  { id: 1, title: "Career Fair 2026", date: "2026-10-03", time: "9:00 AM", location: "CST Campus" },
-];
-const internships = [];
-const applications = [];
-const announcements = [];
 
 /* ----------------------------- helpers ----------------------------- */
 const formatDate = (d) =>
@@ -62,9 +48,7 @@ function Panel({ icon: Icon, title, href, children }) {
 }
 
 function EmptyState({ message }) {
-  return (
-    <p className="py-8 text-center text-sm text-muted">{message}</p>
-  );
+  return <p className="py-8 text-center text-sm text-muted">{message}</p>;
 }
 
 function StatCard({ icon: Icon, label, value, caption, href, iconStyle }) {
@@ -103,9 +87,36 @@ function QuickAction({ icon: Icon, label, href }) {
 
 /* ------------------------------- page ------------------------------ */
 export default function DashboardPage() {
+  const [data, setData] = useState({
+    profileCompletion: 0,
+    upcomingEventsCount: 0,
+    availableInternships: 0,
+    applicationsInProgress: 0,
+    upcomingEvents: [],
+    latestOpportunities: [],
+    announcements: [],
+  });
+  const [firstName, setFirstName] = useState("");
+
+  useEffect(() => {
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const name = user?.firstName || user?.name?.split(" ")[0] || "";
+
+  api("/student/dashboard")
+    .then(setData)
+    .catch((err) => console.warn(err.message))
+    .finally(() => setFirstName(name));
+}, []);
+
+  const events = data.upcomingEvents;
+  const internships = data.latestOpportunities;
+  const announcements = data.announcements;
+
   return (
     <div>
-      <h1 className="text-3xl font-bold text-sidebar">Welcome back,</h1>
+      <h1 className="text-3xl font-bold text-sidebar">
+        Welcome back{firstName ? `, ${firstName}` : ""}
+      </h1>
       <p className="mb-6 text-muted">Here&apos;s what&apos;s happening at CST.</p>
 
       {/* Stat cards */}
@@ -113,7 +124,7 @@ export default function DashboardPage() {
         <StatCard
           icon={UserRound}
           label="My Profile"
-          value={`${profileCompletion}%`}
+          value={`${data.profileCompletion}%`}
           caption="Profile Completed"
           href="/profile"
           iconStyle="bg-blue-100 text-primary"
@@ -121,7 +132,7 @@ export default function DashboardPage() {
         <StatCard
           icon={CalendarDays}
           label="Upcoming Events"
-          value={events.length}
+          value={data.upcomingEventsCount}
           caption="This Month"
           href="/events"
           iconStyle="bg-green-100 text-success"
@@ -129,7 +140,7 @@ export default function DashboardPage() {
         <StatCard
           icon={Briefcase}
           label="Available Internships"
-          value={internships.length}
+          value={data.availableInternships}
           caption="New Opportunities"
           href="/internships"
           iconStyle="bg-purple-100 text-accent"
@@ -137,7 +148,7 @@ export default function DashboardPage() {
         <StatCard
           icon={ClipboardList}
           label="My Applications"
-          value={applications.length}
+          value={data.applicationsInProgress}
           caption="In Progress"
           href="/applications"
           iconStyle="bg-orange-100 text-warning"
@@ -152,7 +163,7 @@ export default function DashboardPage() {
           ) : (
             <ul className="divide-y divide-gray-100">
               {events.map((e) => {
-                const d = new Date(e.date);
+                const d = new Date(e.event_date);
                 return (
                   <li key={e.id} className="flex items-center gap-4 py-3">
                     <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-gray-50">
@@ -169,7 +180,11 @@ export default function DashboardPage() {
                         <MapPin size={12} /> {e.location}
                       </p>
                       <p className="flex items-center gap-1 text-xs text-muted">
-                        <Clock size={12} /> {e.time}
+                        <Clock size={12} />{" "}
+                        {d.toLocaleTimeString("en-US", {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
                       </p>
                     </div>
                   </li>
@@ -203,12 +218,14 @@ export default function DashboardPage() {
                       ))}
                     </div>
                   </div>
-                  <div className="text-right text-xs">
-                    <p className="text-warning">Apply by</p>
-                    <p className="font-semibold text-danger">
-                      {formatDate(i.deadline)}
-                    </p>
-                  </div>
+                  {i.deadline && (
+                    <div className="text-right text-xs">
+                      <p className="text-warning">Apply by</p>
+                      <p className="font-semibold text-danger">
+                        {formatDate(i.deadline)}
+                      </p>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

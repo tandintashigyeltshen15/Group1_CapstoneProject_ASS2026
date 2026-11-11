@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { api } from "@/lib/api";
 import {
   Bell,
   Search,
@@ -15,59 +16,34 @@ import {
   Filter,
 } from "lucide-react";
 
-/* ------------------------------------------------------------------
-   DATA (temporary): empty for now. Later, fetch from the backend.
-   The system creates these automatically (new event, request accepted,
-   application status changed, staff announcement...).
-
-   notifications: {
-     id,
-     type: "MENTORSHIP" | "APPLICATION" | "EVENT" | "ANNOUNCEMENT",
-     title, message,
-     createdAt: "2026-10-18T10:30:00",
-     isRead: false,
-     href: "/mentorship"          // optional: where clicking it should go
-   }
-------------------------------------------------------------------- */
-const initialNotifications = [
-  { id: 1, type: "MENTORSHIP", title: "Mentorship Request Update",
-    message: "Your mentorship request has been accepted by Test Alumni.",
-    createdAt: "2026-10-18T18:40:00", isRead: false, href: "/mentorship" },
-  { id: 2, type: "EVENT", title: "New Event: Alumni Career Talk",
-    message: "Join us on November 20 at the Seminar Hall.",
-    createdAt: "2026-10-17T16:15:00", isRead: false, href: "/events" },
-  { id: 3, type: "APPLICATION", title: "Application Status Updated",
-    message: "Your DrukTech internship application is now under review.",
-    createdAt: "2026-10-10T09:20:00", isRead: true, href: "/applications" },
-  { id: 4, type: "ANNOUNCEMENT", title: "System Maintenance Notice",
-    message: "The portal will be down briefly this weekend.",
-    createdAt: "2026-10-07T08:10:00", isRead: true },
-];
-
 const typeConfig = {
   MENTORSHIP: {
     label: "Mentorship",
     icon: Users,
     circle: "bg-purple-100 text-accent",
     pill: "bg-purple-50 text-accent",
+    href: "/mentorship",
   },
   APPLICATION: {
     label: "Application",
     icon: FileText,
     circle: "bg-blue-100 text-primary",
     pill: "bg-blue-50 text-primary",
+    href: "/applications",
   },
   EVENT: {
     label: "Event",
     icon: CalendarDays,
     circle: "bg-green-100 text-success",
     pill: "bg-green-50 text-success",
+    href: "/events",
   },
   ANNOUNCEMENT: {
     label: "Announcement",
     icon: Megaphone,
     circle: "bg-orange-100 text-warning",
     pill: "bg-orange-50 text-warning",
+    href: null,
   },
 };
 
@@ -114,9 +90,25 @@ function CountBadge({ value, active }) {
 /* ------------------------------- page ------------------------------ */
 export default function NotificationsPage() {
   const router = useRouter();
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState([]);
+  const [loaded, setLoaded] = useState(false);
   const [tab, setTab] = useState(null);
   const [search, setSearch] = useState("");
+
+  const load = () =>
+    api("/notifications")
+      .then((d) => {
+        setNotifications(d);
+        setLoaded(true);
+      })
+      .catch((err) => {
+        console.warn(err.message);
+        setLoaded(true);
+      });
+
+  useEffect(() => {
+    load();
+  }, []);
 
   const countType = (type) =>
     type ? notifications.filter((n) => n.type === type).length : notifications.length;
@@ -135,19 +127,21 @@ export default function NotificationsPage() {
         `${n.title} ${n.message}`.toLowerCase().includes(search.toLowerCase())
     );
 
+  // Update the screen straight away, then tell the server (reload if it fails)
   const markRead = (id) => {
-    // TODO (backend phase): PATCH /api/notifications/:id/read
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+    api(`/notifications/${id}/read`, { method: "PATCH" }).catch(load);
   };
 
   const markAllRead = () => {
-    // TODO (backend phase): PATCH /api/notifications/read-all
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    api("/notifications/read-all", { method: "PATCH" }).catch(load);
   };
 
   const open = (n) => {
-    markRead(n.id);
-    if (n.href) router.push(n.href);
+    if (!n.isRead) markRead(n.id);
+    const href = typeConfig[n.type].href;
+    if (href) router.push(href);
   };
 
   return (
@@ -201,7 +195,9 @@ export default function NotificationsPage() {
 
           {list.length === 0 ? (
             <div className="rounded-xl border border-gray-200 bg-white py-14 text-center text-sm text-muted shadow-sm">
-              {notifications.length === 0
+              {!loaded
+                ? "Loading..."
+                : notifications.length === 0
                 ? "You're all caught up. No notifications yet."
                 : "No notifications match your filters."}
             </div>

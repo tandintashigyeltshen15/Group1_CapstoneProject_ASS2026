@@ -1,60 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
 import { CalendarDays, Clock, MapPin, Search, Users, UserRound } from "lucide-react";
 
-/* ------------------------------------------------------------------
-   DATA (temporary): empty for now. Later, fetch from the backend.
-   Staff will create these from their own page.
-
-   events: { id, title, description, location,
-             categories: ["Career Guidance", "Alumni Talk"],
-             startsAt: "2026-11-20T10:00:00", endsAt: "2026-11-20T12:00:00",
-             organizer, expectedParticipants }
-------------------------------------------------------------------- */
-const events = [
-  { id: 1, title: "CST Alumni Career Talk", description: "Hear from alumni working in tech.",
-    location: "Seminar Hall, CST", categories: ["Career Guidance", "Alumni Talk"],
-    startsAt: "2026-11-20T10:00:00", endsAt: "2026-11-20T12:00:00",
-    organizer: "CST Alumni Association", expectedParticipants: "200+ students" },
-  { id: 2, title: "Community Service Drive", description: "Volunteer day in Thimphu.",
-    location: "Thimphu", categories: ["Community Service"],
-    startsAt: "2026-10-15T09:00:00", endsAt: "2026-11-05T17:00:00" },
-  { id: 3, title: "Alumni Panel Discussion", description: "Paths beyond CST.",
-    location: "Multipurpose Hall, CST", categories: ["Panel Discussion"],
-    startsAt: "2026-10-01T15:00:00", endsAt: "2026-10-01T17:00:00" },
-];
-
-const tabs = ["All Events", "Upcoming", "Ongoing", "Past Events"];
+const tabs = ["All Events", "Upcoming", "Past Events"];
 
 /* ----------------------------- helpers ----------------------------- */
-// Status is worked out from the dates, so staff never set it by hand
-const getStatus = (e) => {
-  const now = Date.now();
-  if (now < new Date(e.startsAt).getTime()) return "Upcoming";
-  if (now <= new Date(e.endsAt).getTime()) return "Ongoing";
-  return "Past";
-};
+// The table only has a start time, so an event is either Upcoming or Past
+const getStatus = (e) => (new Date(e.startsAt).getTime() >= Date.now() ? "Upcoming" : "Past");
 
 const fmtDate = (d) =>
   new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 const fmtTime = (d) =>
   new Date(d).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
 
-const dateText = (e) =>
-  sameDay(e.startsAt, e.endsAt)
-    ? fmtDate(e.startsAt)
-    : `${fmtDate(e.startsAt)} – ${fmtDate(e.endsAt)}`;
-const timeText = (e) =>
-  sameDay(e.startsAt, e.endsAt) ? `${fmtTime(e.startsAt)} – ${fmtTime(e.endsAt)}` : null;
+const timeText = (e) => `${fmtTime(e.startsAt)}${e.duration ? ` · ${e.duration}` : ""}`;
+
+// API shape -> page shape
+const mapEvent = (e) => ({
+  id: e.EventID,
+  title: e.Title,
+  description: e.Description,
+  location: e.Venue,
+  startsAt: e.DateTime,
+  duration: e.Duration,
+  organizer: e.user?.Name
+    ? `${e.user.Name}${e.user.role?.RoleName ? ` (${e.user.role.RoleName})` : ""}`
+    : null,
+  registrations: e._count?.event_registration ?? 0,
+});
 
 const statusStyle = {
   Upcoming: "bg-primary text-white",
-  Ongoing: "bg-success text-white",
   Past: "bg-muted text-white",
 };
-const rank = { Upcoming: 0, Ongoing: 1, Past: 2 };
+const rank = { Upcoming: 0, Past: 1 };
 
 /* ----------------------------- pieces ----------------------------- */
 function StatusPill({ status }) {
@@ -62,19 +43,6 @@ function StatusPill({ status }) {
     <span className={`rounded-md px-2.5 py-1 text-xs font-medium ${statusStyle[status]}`}>
       {status}
     </span>
-  );
-}
-
-function Tags({ list }) {
-  if (!list?.length) return null;
-  return (
-    <div className="mt-2 flex flex-wrap gap-2">
-      {list.map((t) => (
-        <span key={t} className="rounded-full bg-blue-50 px-3 py-0.5 text-xs text-primary">
-          {t}
-        </span>
-      ))}
-    </div>
   );
 }
 
@@ -86,7 +54,7 @@ function EmptyState({ message }) {
   );
 }
 
-function EventCard({ event, status, active, registered, onSelect, onRegister }) {
+function EventCard({ event, status, active, registered, busy, onSelect, onRegister }) {
   return (
     <div
       onClick={() => onSelect(event.id)}
@@ -105,18 +73,17 @@ function EventCard({ event, status, active, registered, onSelect, onRegister }) 
         <h3 className="font-semibold text-sidebar">{event.title}</h3>
         <p className="mt-1 flex flex-wrap items-center gap-x-4 text-sm text-text">
           <span className="flex items-center gap-1">
-            <CalendarDays size={14} className="text-muted" /> {dateText(event)}
+            <CalendarDays size={14} className="text-muted" /> {fmtDate(event.startsAt)}
           </span>
-          {timeText(event) && (
-            <span className="flex items-center gap-1">
-              <Clock size={14} className="text-muted" /> {timeText(event)}
-            </span>
-          )}
+          <span className="flex items-center gap-1">
+            <Clock size={14} className="text-muted" /> {timeText(event)}
+          </span>
         </p>
-        <p className="mt-1 flex items-center gap-1 text-sm text-text">
-          <MapPin size={14} className="text-muted" /> {event.location}
-        </p>
-        <Tags list={event.categories} />
+        {event.location && (
+          <p className="mt-1 flex items-center gap-1 text-sm text-text">
+            <MapPin size={14} className="text-muted" /> {event.location}
+          </p>
+        )}
       </div>
 
       {status === "Upcoming" && !registered ? (
@@ -125,9 +92,10 @@ function EventCard({ event, status, active, registered, onSelect, onRegister }) 
             e.stopPropagation();
             onRegister(event.id);
           }}
-          className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          disabled={busy}
+          className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
         >
-          Register Now
+          {busy ? "Registering..." : "Register Now"}
         </button>
       ) : (
         <span
@@ -144,16 +112,50 @@ function EventCard({ event, status, active, registered, onSelect, onRegister }) 
 
 /* ------------------------------- page ------------------------------ */
 export default function EventsPage() {
+  const [events, setEvents] = useState([]);
+  const [registeredIds, setRegisteredIds] = useState([]);
   const [tab, setTab] = useState("All Events");
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("");
   const [selectedId, setSelectedId] = useState(null);
-  const [registeredIds, setRegisteredIds] = useState([]);
+  const [busyId, setBusyId] = useState(null);
+  const [error, setError] = useState("");
 
-  const register = (id) => {
-    // TODO (backend phase): POST /api/events/:id/register
-    // For now it is only stored locally so the UI can be tested.
-    setRegisteredIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  const load = () =>
+    Promise.all([api("/events"), api("/events/registrations/mine")])
+      .then(([evs, regs]) => {
+        setEvents(evs.map(mapEvent));
+        setRegisteredIds(regs.map((r) => r.event.EventID));
+      })
+      .catch((err) => console.warn(err.message));
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const register = async (id) => {
+    setError("");
+    setBusyId(id);
+    try {
+      await api(`/events/${id}/register`, { method: "POST" });
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const cancelRegistration = async (id) => {
+    setError("");
+    setBusyId(id);
+    try {
+      await api(`/events/${id}/register`, { method: "DELETE" });
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const withStatus = events
@@ -167,14 +169,12 @@ export default function EventsPage() {
     );
 
   const count = (s) => withStatus.filter((e) => e.status === s).length;
-  const categories = [...new Set(events.flatMap((e) => e.categories ?? []))].sort();
 
-  const tabStatus = { Upcoming: "Upcoming", Ongoing: "Ongoing", "Past Events": "Past" }[tab];
+  const tabStatus = { Upcoming: "Upcoming", "Past Events": "Past" }[tab];
   const list = withStatus.filter(
     (e) =>
       (!tabStatus || e.status === tabStatus) &&
-      (!category || e.categories?.includes(category)) &&
-      `${e.title} ${e.location} ${(e.categories ?? []).join(" ")}`
+      `${e.title} ${e.location ?? ""} ${e.description ?? ""}`
         .toLowerCase()
         .includes(search.toLowerCase())
   );
@@ -185,9 +185,10 @@ export default function EventsPage() {
   const tabLabel = (t) => {
     if (t === "All Events") return `${t} (${withStatus.length})`;
     if (t === "Upcoming") return `${t} (${count("Upcoming")})`;
-    if (t === "Ongoing") return `${t} (${count("Ongoing")})`;
     return `${t} (${count("Past")})`;
   };
+
+  const selectedRegistered = selected ? registeredIds.includes(selected.id) : false;
 
   return (
     <div>
@@ -204,7 +205,7 @@ export default function EventsPage() {
         </div>
       </div>
 
-      {/* Tabs + search + category */}
+      {/* Tabs + search */}
       <div className="mb-6 flex flex-wrap items-center gap-4 border-b border-gray-200">
         <div className="flex gap-8">
           {tabs.map((t) => (
@@ -222,7 +223,7 @@ export default function EventsPage() {
           ))}
         </div>
 
-        <div className="ml-auto mb-2 flex items-center gap-3">
+        <div className="ml-auto mb-2">
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
             <input
@@ -232,27 +233,17 @@ export default function EventsPage() {
               className="w-56 rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-text outline-none focus:border-primary"
             />
           </div>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-text outline-none focus:border-primary"
-          >
-            <option value="">All Categories</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
         </div>
       </div>
+
+      {error && <p className="mb-4 text-sm text-danger">{error}</p>}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_24rem]">
         {/* Event list */}
         <div className="space-y-4">
           {list.length === 0 ? (
             <EmptyState
-              message={events.length === 0 ? "No events yet." : "No events match your filters."}
+              message={events.length === 0 ? "No events yet." : "No events match your search."}
             />
           ) : (
             list.map((e) => (
@@ -262,6 +253,7 @@ export default function EventsPage() {
                 status={e.status}
                 active={selected?.id === e.id}
                 registered={registeredIds.includes(e.id)}
+                busy={busyId === e.id}
                 onSelect={setSelectedId}
                 onRegister={register}
               />
@@ -282,16 +274,16 @@ export default function EventsPage() {
                 </div>
                 <div className="space-y-2 p-5 text-sm text-text">
                   <p className="flex items-center gap-3">
-                    <CalendarDays size={16} className="text-muted" /> {dateText(selected)}
+                    <CalendarDays size={16} className="text-muted" /> {fmtDate(selected.startsAt)}
                   </p>
-                  {timeText(selected) && (
+                  <p className="flex items-center gap-3">
+                    <Clock size={16} className="text-muted" /> {timeText(selected)}
+                  </p>
+                  {selected.location && (
                     <p className="flex items-center gap-3">
-                      <Clock size={16} className="text-muted" /> {timeText(selected)}
+                      <MapPin size={16} className="text-muted" /> {selected.location}
                     </p>
                   )}
-                  <p className="flex items-center gap-3">
-                    <MapPin size={16} className="text-muted" /> {selected.location}
-                  </p>
 
                   {selected.description && (
                     <div className="border-t border-gray-100 pt-3">
@@ -300,40 +292,50 @@ export default function EventsPage() {
                     </div>
                   )}
 
-                  {(selected.organizer || selected.expectedParticipants) && (
-                    <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-3">
-                      {selected.organizer && (
-                        <div className="flex items-start gap-2">
-                          <UserRound size={18} className="mt-0.5 text-muted" />
-                          <div>
-                            <p className="text-xs text-muted">Organized by</p>
-                            <p>{selected.organizer}</p>
-                          </div>
+                  <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-3">
+                    {selected.organizer && (
+                      <div className="flex items-start gap-2">
+                        <UserRound size={18} className="mt-0.5 text-muted" />
+                        <div>
+                          <p className="text-xs text-muted">Posted by</p>
+                          <p>{selected.organizer}</p>
                         </div>
-                      )}
-                      {selected.expectedParticipants && (
-                        <div className="flex items-start gap-2">
-                          <Users size={18} className="mt-0.5 text-muted" />
-                          <div>
-                            <p className="text-xs text-muted">Expected Participants</p>
-                            <p>{selected.expectedParticipants}</p>
-                          </div>
-                        </div>
-                      )}
+                      </div>
+                    )}
+                    <div className="flex items-start gap-2">
+                      <Users size={18} className="mt-0.5 text-muted" />
+                      <div>
+                        <p className="text-xs text-muted">Registered</p>
+                        <p>
+                          {selected.registrations}{" "}
+                          {selected.registrations === 1 ? "person" : "people"}
+                        </p>
+                      </div>
                     </div>
-                  )}
+                  </div>
 
                   {selected.status === "Upcoming" &&
-                    (registeredIds.includes(selected.id) ? (
-                      <p className="mt-2 rounded-lg border border-success py-2.5 text-center font-medium text-success">
-                        You are registered
-                      </p>
+                    (selectedRegistered ? (
+                      <div className="mt-2 space-y-2">
+                        <p className="rounded-lg border border-success py-2.5 text-center font-medium text-success">
+                          You are registered
+                        </p>
+                        <button
+                          onClick={() => cancelRegistration(selected.id)}
+                          disabled={busyId === selected.id}
+                          className="w-full rounded-lg border border-gray-200 py-2 text-sm font-medium text-danger hover:bg-red-50 disabled:opacity-60"
+                        >
+                          {busyId === selected.id ? "Cancelling..." : "Cancel registration"}
+                        </button>
+                      </div>
                     ) : (
                       <button
                         onClick={() => register(selected.id)}
-                        className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 font-medium text-white hover:bg-blue-700"
+                        disabled={busyId === selected.id}
+                        className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-60"
                       >
-                        <CalendarDays size={16} /> Register Now
+                        <CalendarDays size={16} />
+                        {busyId === selected.id ? "Registering..." : "Register Now"}
                       </button>
                     ))}
                 </div>
@@ -369,7 +371,7 @@ export default function EventsPage() {
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-sidebar">{e.title}</p>
-                        {timeText(e) && <p className="text-xs text-muted">{timeText(e)}</p>}
+                        <p className="text-xs text-muted">{timeText(e)}</p>
                       </div>
                       <span className="rounded-full bg-blue-50 px-3 py-1 text-xs text-primary">
                         {registeredIds.includes(e.id) ? "Registered" : "Register Soon"}

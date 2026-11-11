@@ -71,40 +71,47 @@ export default function AlumniSignupPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setFileError("");
 
     if (formData.password.length < 8) {
       setError("Password must be at least 8 characters.");
       return;
     }
+
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
+
     if (!proofFile) {
       setFileError("Please upload your proof of graduation.");
       return;
     }
+
     if (!formData.agreed) {
       setError("Please agree to the Terms & Conditions.");
       return;
     }
 
     setLoading(true);
+
     try {
-      // The proof document is NOT sent yet: the backend has nowhere to store it.
-      // It needs a new column for the file URL, an upload package (multer) and file storage.
-      const data = await api("/auth/register", {
+      const data = new FormData();
+
+      data.append("role", "ALUMNI");
+      data.append("fullName", formData.fullName.trim());
+      data.append("email", formData.email.trim());
+      data.append("password", formData.password);
+      data.append("programmeId", String(Number(formData.programmeId)));
+      data.append("graduationYear", String(Number(formData.graduationYear)));
+      data.append("proof", proofFile);
+
+      const response = await api("/auth/register", {
         method: "POST",
-        body: JSON.stringify({
-          role: "ALUMNI",
-          fullName: formData.fullName.trim(),
-          email: formData.email.trim(),
-          password: formData.password,
-          programmeId: Number(formData.programmeId),
-          graduationYear: Number(formData.graduationYear),
-        }),
+        body: data,
       });
-      setSuccess(data.message);
+
+      setSuccess(response.message);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -142,8 +149,8 @@ export default function AlumniSignupPage() {
       <div className="max-w-6xl mx-auto px-10 pb-16">
         <div className="flex border border-gray-300 rounded-2xl overflow-hidden">
           {/* Left panel */}
-          <div className="relative w-[315px] shrink-0 bg-[#071D3B] text-white flex flex-col">
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-8 pt-10 relative z-10">
+          <div className="relative flex w-[315px] shrink-0 flex-col bg-[#071D3B] text-white">
+            <div className="relative z-10 flex flex-col items-center px-8 pt-12 text-center">
               <div className="bg-[#0C3A2E] rounded-full w-20 h-20 flex items-center justify-center mb-5">
                 <User className="text-[#12B76A]" size={32} strokeWidth={1.75} />
               </div>
@@ -154,14 +161,19 @@ export default function AlumniSignupPage() {
               </p>
             </div>
 
-            {/* Curved campus photo (needs public/campus.jpg) */}
+            {/* Curved campus photo (needs public/campus.jpg): sits right under the text and fills the rest of the panel */}
             <div
-              className="relative h-56 w-full"
-              style={{ clipPath: "ellipse(70% 55% at 50% 100%)" }}
+              className="relative mt-10 min-h-56 flex-1"
+              style={{ clipPath: "ellipse(75% 100% at 50% 100%)" }}
             >
-              <Image src="/campus.jpg" alt="CST Campus" fill className="object-cover" />
+              <Image
+                src="/campus.jpg"
+                alt="CST Campus"
+                fill
+                sizes="315px"
+                className="object-cover"
+              />
             </div>
-            <div className="absolute inset-0 -z-10 bg-[#071D3B]" />
           </div>
 
           {/* Right form */}
