@@ -29,7 +29,6 @@ model alumni {
   @@index([GraduationYear, ProgrammeID], map: "idx_alumni_grad_programme")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model application {
   ApplicationID     Int         @id @default(autoincrement()) @db.UnsignedInt
   StudentID         String      @db.VarChar(20)
@@ -44,7 +43,6 @@ model application {
   @@index([StudentID, SubmissionDate], map: "idx_application_student_date")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model career_history {
   CareerID     Int       @id @default(autoincrement()) @db.UnsignedInt
   AlumniID     Int       @db.UnsignedInt
@@ -76,7 +74,6 @@ model department {
   staff          staff[]
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model event {
   EventID            Int                  @id @default(autoincrement()) @db.UnsignedInt
   CreatorID          Int                  @db.UnsignedInt
@@ -104,7 +101,6 @@ model event_registration {
   @@index([EventID], map: "fk_eventreg_event")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model mentorship_request {
   RequestID      Int      @id @default(autoincrement()) @db.UnsignedInt
   StudentID      String   @db.VarChar(20)
@@ -133,7 +129,6 @@ model notification {
   @@index([UserID, IsRead, CreatedAt], map: "idx_notification_user_read")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model opportunity {
   OpportunityID           Int           @id @default(autoincrement()) @db.UnsignedInt
   CreatorID               Int           @db.UnsignedInt
@@ -163,7 +158,6 @@ model programme {
   @@index([DepartmentID], map: "fk_programme_department")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model project {
   ProjectID     Int       @id @default(autoincrement()) @db.UnsignedInt
   AlumniID      Int       @db.UnsignedInt
@@ -227,7 +221,6 @@ model student {
   @@index([ProgrammeID], map: "fk_student_programme")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model user {
   UserID                 Int                      @id @default(autoincrement()) @db.UnsignedInt
   RoleID                 Int                      @db.UnsignedInt
@@ -253,10 +246,12 @@ model user {
   student_portfolio_file student_portfolio_file[]
   role                   role                     @relation(fields: [RoleID], references: [RoleID], map: "fk_user_role")
 
+  // Added for password reset functionality
+  password_reset_token password_reset_token[]
+
   @@index([RoleID], map: "fk_user_role")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model announcement {
   AnnouncementID Int      @id @default(autoincrement()) @db.UnsignedInt
   CreatorID      Int      @db.UnsignedInt
@@ -269,7 +264,6 @@ model announcement {
   @@index([CreatorID], map: "fk_announcement_creator")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model contribution_payment {
   PaymentID             Int                   @id @default(autoincrement()) @db.UnsignedInt
   CampaignID            Int                   @db.UnsignedInt
@@ -293,7 +287,6 @@ model contribution_payment {
   @@index([UserID, SubmittedAt], map: "idx_payment_user")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model contribution_request {
   RequestID        Int       @id @default(autoincrement()) @db.UnsignedInt
   CreatorID        Int       @db.UnsignedInt
@@ -322,7 +315,6 @@ model institution_account {
   UpdatedAt     DateTime @default(now()) @db.DateTime(0)
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model contribution_campaign {
   CampaignID           Int                    @id @default(autoincrement()) @db.UnsignedInt
   CreatorID            Int                    @db.UnsignedInt
@@ -343,7 +335,6 @@ model contribution_campaign {
   @@index([CreatorID], map: "fk_campaign_creator")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model student_portfolio_file {
   PortfolioFileID     Int      @id @default(autoincrement()) @db.UnsignedInt
   UserID              Int      @db.UnsignedInt
@@ -360,4 +351,18 @@ model student_portfolio_file {
   user                user     @relation(fields: [UserID], references: [UserID], onDelete: Cascade, map: "fk_portfolio_user")
 
   @@index([UserID, UploadedAt], map: "idx_portfolio_user")
+}
+
+// New model for password reset tokens
+model password_reset_token {
+  PasswordResetID Int      @id @default(autoincrement()) @db.UnsignedInt
+  UserID          Int      @db.UnsignedInt
+  TokenHash       String   @unique(map: "uq_reset_token_hash") @db.Char(64)
+  ExpiresAt       DateTime @db.DateTime(0)
+  CreatedAt       DateTime @default(now()) @db.DateTime(0)
+
+  user user @relation(fields: [UserID], references: [UserID], onDelete: Cascade, onUpdate: Cascade, map: "fk_reset_user")
+
+  @@index([UserID], map: "idx_reset_user")
+  @@map("password_reset_token")
 }

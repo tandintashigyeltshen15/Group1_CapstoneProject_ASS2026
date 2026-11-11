@@ -55,6 +55,7 @@ app.use("/api/alumni/me/students", require("./routes/alumniStudentPortfolio.rout
 app.use("/api/alumni-dashboard", require("./routes/alumniDashboard.routes"));
 app.use("/api/mentor-inbox", require("./routes/mentorInbox.routes"));
 app.use("/api/admin-opportunities", require("./routes/adminOpportunities.routes"));
+   app.use("/api/password-reset", require("./routes/passwordReset.routes"));
 
 // These must stay ABOVE "/api/staff", otherwise the general staff router catches them first
 app.use("/api/staff/dashboard", require("./routes/staffDashboard.routes"));

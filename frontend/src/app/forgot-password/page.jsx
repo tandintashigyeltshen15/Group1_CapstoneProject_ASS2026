@@ -4,16 +4,31 @@ import { useState } from "react";
 import Link from "next/link";
 import { Mail, Lock, Send, ArrowLeft, MailCheck, ShieldCheck } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
+import { api } from "@/lib/api";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO (backend phase): POST /api/auth/forgot-password with { email }
-    // The server answers the same way whether or not the account exists.
-    setSent(true);
+    setError("");
+    setLoading(true);
+
+    try {
+      // The server answers the same way whether or not the account exists.
+      await api("/password-reset/request", {
+        method: "POST",
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      setSent(true);
+    } catch (err) {
+      setError(err.message || "Could not send the reset link. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (sent) {
@@ -77,7 +92,10 @@ export default function ForgotPasswordPage() {
           <input
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setError("");
+            }}
             placeholder="Enter your registered email address"
             autoComplete="email"
             required
@@ -85,11 +103,14 @@ export default function ForgotPasswordPage() {
           />
         </div>
 
+        {error && <p className="-mt-2 mb-4 text-sm text-danger">{error}</p>}
+
         <button
           type="submit"
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-sidebar py-3 text-[15px] font-semibold text-white hover:bg-[#0f1f3a]"
+          disabled={loading}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-sidebar py-3 text-[15px] font-semibold text-white hover:bg-[#0f1f3a] disabled:opacity-60"
         >
-          <Send size={16} /> Send Reset Link
+          <Send size={16} /> {loading ? "Sending..." : "Send Reset Link"}
         </button>
 
         <div className="my-5 flex items-center gap-3 text-xs text-muted">
