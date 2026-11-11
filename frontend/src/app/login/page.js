@@ -131,12 +131,12 @@ function LoginForm() {
             </p>
           </div>
 
-          {/* Campus photo */}
+          {/* Campus photo: starts just under the text and fills the rest of the panel */}
           <div
-            className="mt-auto h-64 w-full bg-cover bg-center"
+            className="mt-10 min-h-64 flex-1 bg-cover bg-center"
             style={{
               backgroundImage: "url('/campus.jpg')",
-              clipPath: "ellipse(80% 70% at 50% 100%)",
+              clipPath: "ellipse(75% 100% at 50% 100%)",
             }}
           />
         </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import PortfolioSection from "@/components/PortfolioSection";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import AvatarUpload from "@/components/AvatarUpload";
@@ -413,34 +414,38 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Portfolio tab */}
+           {/* Portfolio tab */}
       {tab === "Portfolio" && (
-        <Panel
-          icon={Code2}
-          title="My Portfolio"
-          subtitle="Showcase the projects you are proud of."
-          action={
-            <button
-              onClick={openEdit}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              <Pencil size={14} /> Edit Projects
-            </button>
-          }
-        >
-          {projects.length === 0 ? (
-            <div className="flex flex-col items-center py-12 text-center text-sm text-muted">
-              <FolderOpen size={36} className="mb-3 text-gray-300" />
-              No projects yet. Use Edit Projects to add your first one.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {projects.map((p, i) => (
-                <ProjectCard key={`${p.title}-${i}`} project={p} />
-              ))}
-            </div>
-          )}
-        </Panel>
+        <div className="space-y-6">
+          <Panel
+            icon={Code2}
+            title="My Portfolio"
+            subtitle="Showcase the projects you are proud of."
+            action={
+              <button
+                onClick={openEdit}
+                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                <Pencil size={14} /> Edit Projects
+              </button>
+            }
+          >
+            {projects.length === 0 ? (
+              <div className="flex flex-col items-center py-12 text-center text-sm text-muted">
+                <FolderOpen size={36} className="mb-3 text-gray-300" />
+                No projects yet. Use Edit Projects to add your first one.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {projects.map((p, i) => (
+                  <ProjectCard key={`${p.title}-${i}`} project={p} />
+                ))}
+              </div>
+            )}
+          </Panel>
+
+          <PortfolioSection />
+        </div>
       )}
 
       {/* Edit profile modal */}

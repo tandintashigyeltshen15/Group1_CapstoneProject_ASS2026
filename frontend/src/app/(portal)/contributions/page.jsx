@@ -3,105 +3,95 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import {
-  Heart,
-  Clock,
-  Check,
-  Users,
-  Megaphone,
-  TrendingUp,
-  CalendarDays,
+  Heart, Clock, Check, Users, Megaphone, TrendingUp, CalendarDays, Search, X,
 } from "lucide-react";
 
-const tabs = ["All Initiatives", "Ongoing", "Completed"];
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-const formatDate = (d) =>
-  new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const tabs = ["All", "Open", "Completed", "Closed"];
 
-const money = (n) => `Nu. ${Number(n).toLocaleString("en-IN")}`;
+const STATUS_STYLE = {
+  Open: "bg-green-100 text-success",
+  Completed: "bg-blue-100 text-primary",
+  Closed: "bg-gray-100 text-muted",
+};
 
-const initials = (name = "") =>
-  name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+const fmtDate = (d) =>
+  d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "-";
+
+const money = (n) => `Nu. ${Number(n || 0).toLocaleString("en-IN")}`;
+
+const emptyData = {
+  stats: { totalRaised: 0, activeRequests: 0, completedRequests: 0, supporters: 0 },
+  campaigns: [],
+  recent: [],
+};
 
 /* ----------------------------- pieces ----------------------------- */
 function StatusBadge({ status }) {
-  const done = status === "Completed";
   return (
-    <span
-      className={`rounded-full px-3 py-1 text-xs font-medium ${
-        done ? "bg-green-100 text-success" : "bg-orange-100 text-warning"
-      }`}
-    >
-      {done ? "Completed" : "Ongoing"}
+    <span className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_STYLE[status] || STATUS_STYLE.Closed}`}>
+      {status}
     </span>
   );
 }
 
-function EmptyState({ message }) {
-  return <p className="py-12 text-center text-sm text-muted">{message}</p>;
+function Progress({ value }) {
+  return (
+    <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100" role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={100}>
+      <div className="h-full rounded-full bg-success" style={{ width: `${value}%` }} />
+    </div>
+  );
 }
 
-function ImpactStat({ icon: Icon, value, label, iconStyle }) {
+function Stat({ icon: Icon, value, label, tone }) {
   return (
     <div className="flex flex-col items-center rounded-xl bg-gray-50 py-6">
-      <Icon size={22} className={iconStyle} />
+      <Icon size={22} className={tone} />
       <p className="mt-2 text-2xl font-bold text-sidebar">{value}</p>
       <p className="text-sm text-muted">{label}</p>
     </div>
   );
 }
 
-function InitiativeCard({ item }) {
-  const [expanded, setExpanded] = useState(false);
-  const long = item.description.length > 180;
-  const text =
-    expanded || !long ? item.description : `${item.description.slice(0, 180)}...`;
-  const percent = item.targetAmount
-    ? Math.min(100, Math.round((item.receivedAmount / item.targetAmount) * 100))
-    : null;
-
+function CampaignCard({ c, onOpen }) {
   return (
-    <div className="rounded-xl border border-gray-200 p-5">
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <h3 className="font-semibold text-sidebar">{item.title}</h3>
-        <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-primary">
-          {item.type}
-        </span>
-        <StatusBadge status={item.status} />
-      </div>
-
-      <p className="whitespace-pre-line text-sm text-text">{text}</p>
-      {long && (
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="mt-1 text-xs font-medium text-primary hover:underline"
-        >
-          {expanded ? "Show less" : "Read more"}
-        </button>
+    <div className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      {c.imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={`${API}${c.imageUrl}`} alt="" className="h-36 w-full object-cover" />
+      ) : (
+        <div className="flex h-36 items-center justify-center bg-linear-to-br from-sidebar to-primary text-white/80">
+          <Megaphone size={36} />
+        </div>
       )}
+      <div className="flex flex-1 flex-col p-5">
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <h3 className="font-semibold text-sidebar">{c.title}</h3>
+          <StatusBadge status={c.displayStatus} />
+        </div>
+        <span className="mb-2 w-fit rounded bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-primary">{c.category}</span>
+        <p className="line-clamp-2 text-sm text-muted">{c.description}</p>
 
-      {/* Progress */}
-      <div className="mt-4">
-        {percent !== null && (
-          <div className="mb-1 h-2 overflow-hidden rounded-full bg-gray-100">
-            <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
+        <div className="mt-4">
+          <Progress value={c.percent} />
+          <div className="mt-1.5 flex items-center justify-between text-xs">
+            <span className="text-sidebar">{money(c.raised)} of {money(c.target)}</span>
+            <span className="font-semibold text-success">{c.percent}%</span>
           </div>
-        )}
-        <p className="text-sm text-text">
-          <span className="font-semibold text-sidebar">{money(item.receivedAmount)}</span>
-          {item.targetAmount ? ` raised of ${money(item.targetAmount)} (${percent}%)` : " raised"}
-          {" · "}
-          {item.contributors} {item.contributors === 1 ? "contribution" : "contributions"}
-        </p>
-      </div>
+        </div>
 
-      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted">
-        <span>Posted by {item.postedBy}</span>
-        <span>{formatDate(item.createdAt)}</span>
-        {item.deadline && (
-          <span className="flex items-center gap-1">
-            <CalendarDays size={12} /> Until {formatDate(item.deadline)}
-          </span>
-        )}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+          <span className="flex items-center gap-1"><CalendarDays size={12} /> {fmtDate(c.deadline)}</span>
+          <span className="flex items-center gap-1"><Users size={12} /> {c.contributors} contributor{c.contributors === 1 ? "" : "s"}</span>
+        </div>
+
+        <button
+          onClick={() => onOpen(c)}
+          className="mt-auto pt-4 text-left text-sm font-medium text-primary hover:underline"
+        >
+          View Details
+        </button>
       </div>
     </div>
   );
@@ -109,36 +99,39 @@ function InitiativeCard({ item }) {
 
 /* ------------------------------- page ------------------------------ */
 export default function ContributionsPage() {
-  const [data, setData] = useState({
-    stats: { total: 0, ongoing: 0, completed: 0, contributors: 0 },
-    initiatives: [],
-    recentContributors: [],
-  });
-  const [tab, setTab] = useState("All Initiatives");
-  const [sort, setSort] = useState("latest");
+  const [data, setData] = useState(emptyData);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState("");
+  const [tab, setTab] = useState("All");
+  const [category, setCategory] = useState("All");
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState(null);
 
   useEffect(() => {
     api("/contributions")
-      .then(setData)
-      .catch((err) => console.warn(err.message));
+      .then((d) =>
+        setData({
+          stats: d.stats ?? emptyData.stats,
+          campaigns: d.campaigns ?? [],
+          recent: d.recent ?? [],
+        })
+      )
+      .catch((err) => setError(err.message))
+      .finally(() => setLoaded(true));
   }, []);
 
-  const filtered = data.initiatives.filter(
-    (i) =>
-      tab === "All Initiatives" ||
-      (tab === "Ongoing" && i.status === "Open") ||
-      (tab === "Completed" && i.status === "Completed")
+  const { stats, campaigns, recent } = data;
+  const categories = [...new Set(campaigns.map((c) => c.category))].sort();
+
+  const q = search.trim().toLowerCase();
+  const filtered = campaigns.filter(
+    (c) =>
+      (tab === "All" || c.displayStatus === tab) &&
+      (category === "All" || c.category === category) &&
+      (!q || c.title.toLowerCase().includes(q))
   );
 
-  const far = 8.64e15; // initiatives without a deadline go last
-  const sorted = [...filtered].sort((a, b) => {
-    if (sort === "oldest") return new Date(a.createdAt) - new Date(b.createdAt);
-    if (sort === "deadline")
-      return new Date(a.deadline || far) - new Date(b.deadline || far);
-    return new Date(b.createdAt) - new Date(a.createdAt);
-  });
-
-  const { stats, recentContributors } = data;
+  const countFor = (t) => (t === "All" ? campaigns.length : campaigns.filter((c) => c.displayStatus === t).length);
 
   return (
     <div className="space-y-6">
@@ -150,110 +143,99 @@ export default function ContributionsPage() {
         <div>
           <h1 className="text-3xl font-bold text-sidebar">Contributions</h1>
           <p className="text-muted">
-            Give back with your time, skills and resources. Build a stronger CST community
-            together.
+            See how CST staff and alumni are supporting the college and its students.
           </p>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-3">
-        {tabs.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`rounded-full px-6 py-3 text-sm font-medium transition-colors ${
-              tab === t
-                ? "bg-primary text-white"
-                : "bg-blue-50 text-text hover:bg-blue-100"
-            }`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {/* Initiatives */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-sidebar">
-              <Megaphone size={20} className="text-primary" /> Contribution Initiatives
-            </h2>
-            <p className="mt-1 text-sm text-muted">
-              Funding needs posted by staff, and contributions pledged by alumni to uplift the
-              CST community.
-            </p>
-          </div>
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-text outline-none focus:border-primary"
-          >
-            <option value="latest">Latest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="deadline">Deadline Soon</option>
-          </select>
-        </div>
-
-        {sorted.length === 0 ? (
-          <EmptyState
-            message={
-              data.initiatives.length === 0
-                ? "No initiatives yet. Staff will post them here."
-                : "No initiatives in this tab."
-            }
-          />
-        ) : (
-          <div className="space-y-4">
-            {sorted.map((i) => (
-              <InitiativeCard key={i.id} item={i} />
-            ))}
-          </div>
-        )}
-      </div>
+      {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-danger">{error}</p>}
 
       {/* Impact */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-sidebar">
           <TrendingUp size={20} className="text-primary" /> Community Contribution Impact
         </h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <ImpactStat icon={Heart} value={stats.total} label="Total Initiatives" iconStyle="text-primary" />
-          <ImpactStat icon={Clock} value={stats.ongoing} label="Ongoing" iconStyle="text-warning" />
-          <ImpactStat icon={Check} value={stats.completed} label="Completed" iconStyle="text-success" />
-          <ImpactStat icon={Users} value={stats.contributors} label="Alumni Contributors" iconStyle="text-accent" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <Stat icon={Heart} value={money(stats.totalRaised)} label="Total Contributions" tone="text-primary" />
+          <Stat icon={Clock} value={stats.activeRequests} label="Active Requests" tone="text-warning" />
+          <Stat icon={Check} value={stats.completedRequests} label="Completed" tone="text-success" />
+          <Stat icon={Users} value={stats.supporters} label="Supporters" tone="text-accent" />
         </div>
       </div>
 
-      {/* Recent contributors */}
+      {/* Tabs + filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        {tabs.map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`rounded-full px-5 py-2.5 text-sm font-medium transition-colors ${
+              tab === t ? "bg-primary text-white" : "bg-blue-50 text-text hover:bg-blue-100"
+            }`}
+          >
+            {t} ({countFor(t)})
+          </button>
+        ))}
+        <div className="ml-auto flex flex-wrap items-center gap-3">
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search requests..."
+              className="w-52 rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-text outline-none focus:border-primary"
+            />
+          </div>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-text outline-none focus:border-primary"
+            aria-label="Filter by category"
+          >
+            <option value="All">All categories</option>
+            {categories.map((c) => <option key={c}>{c}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Campaigns */}
+      {filtered.length === 0 ? (
+        <div className="rounded-xl border border-gray-200 bg-white py-14 text-center text-sm text-muted shadow-sm">
+          {!loaded
+            ? "Loading..."
+            : campaigns.length === 0
+            ? "No contribution requests yet. They appear here once the administration publishes them."
+            : "No requests match your filters."}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((c) => (
+            <CampaignCard key={c.id} c={c} onOpen={setSelected} />
+          ))}
+        </div>
+      )}
+
+      {/* Recent contributions */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-sidebar">
-          <Users size={20} className="text-primary" /> Recent Contributors
+          <Users size={20} className="text-primary" /> Recent Contributions
         </h2>
-        {recentContributors.length === 0 ? (
-          <EmptyState message="No contributors yet." />
+        {recent.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted">No verified contributions yet.</p>
         ) : (
           <ul className="divide-y divide-gray-100">
-            {recentContributors.map((c) => (
-              <li key={c.id} className="flex items-center gap-4 py-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-primary">
-                  {c.graduationYear ? initials(c.name) : "?"}
+            {recent.map((r) => (
+              <li key={r.id} className="flex items-center gap-4 py-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-primary">
+                  <Heart size={16} />
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium text-sidebar">{c.name}</p>
-                  <p className="text-xs text-muted">
-                    {c.graduationYear ? `Class of ${c.graduationYear} · ` : ""}
-                    {c.initiative}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-sidebar">{r.donor}</p>
+                  <p className="truncate text-xs text-muted">{r.campaign}</p>
                 </div>
-                <div className="text-right text-xs text-muted">
-                  {c.amount ? (
-                    <p className="text-sm font-semibold text-sidebar">{money(c.amount)}</p>
-                  ) : (
-                    <p className="text-sm font-medium text-sidebar">In-kind</p>
-                  )}
-                  <p>{formatDate(c.date)}</p>
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-sidebar">{money(r.amount)}</p>
+                  <p className="text-xs text-muted">{fmtDate(r.date)}</p>
                 </div>
               </li>
             ))}
@@ -262,10 +244,54 @@ export default function ContributionsPage() {
       </div>
 
       {/* Banner */}
-      <div className="rounded-xl bg-gradient-to-r from-sidebar to-primary px-6 py-12 text-center text-white">
+      <div className="rounded-xl bg-linear-to-r from-sidebar to-primary px-6 py-12 text-center text-white">
         <p className="text-2xl font-medium italic">&ldquo;Together, we give back. Together, we grow.&rdquo;</p>
         <p className="mt-2 text-sm text-white/80">&ndash; CST Alumni Community</p>
       </div>
+
+      {/* Details modal */}
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-sidebar">{selected.title}</h3>
+                <p className="text-sm text-muted">{selected.category}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <StatusBadge status={selected.displayStatus} />
+                <button onClick={() => setSelected(null)} aria-label="Close"><X size={18} className="text-muted" /></button>
+              </div>
+            </div>
+
+            <Progress value={selected.percent} />
+            <p className="mt-1.5 text-sm text-sidebar">
+              {money(selected.raised)} raised of {money(selected.target)} ·{" "}
+              <span className="font-semibold text-success">{selected.percent}%</span>
+            </p>
+
+            <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-xs text-muted">Deadline</p>
+                <p className="font-medium text-sidebar">{fmtDate(selected.deadline)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted">Contributors</p>
+                <p className="font-medium text-sidebar">{selected.contributors}</p>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <p className="mb-1 text-xs text-muted">About this request</p>
+              <p className="whitespace-pre-line text-sm text-text">{selected.description}</p>
+            </div>
+
+            <p className="mt-5 rounded-lg bg-blue-50 p-3 text-xs text-sidebar">
+              Contributions to these requests are made by CST staff and alumni. Students can follow the progress here.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

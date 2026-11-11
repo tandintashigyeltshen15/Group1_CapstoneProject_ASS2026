@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -384,7 +383,7 @@ export default function AlumniHubPage() {
               {yearbooks.map(([y, count]) => (
                 <Link
                   key={y}
-                  href={`/alumni-hub/yearbook/${y}`}
+                  href={`/alumni-hub/yearbook?year=${y}`}
                   className="overflow-hidden rounded-lg border border-gray-200 transition-shadow hover:shadow-md"
                 >
                   <div className="bg-sidebar p-4 text-white">

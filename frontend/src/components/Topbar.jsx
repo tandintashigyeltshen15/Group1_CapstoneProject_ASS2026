@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Search, Bell, ChevronDown } from "lucide-react";
@@ -15,19 +15,49 @@ const PROFILE_ENDPOINT = {
   Alumni: "/alumni/me",
 };
 
+// How often the bell checks for new notifications (milliseconds)
+const REFRESH_MS = 30000;
+
+// Works whether the API returns a plain list or an object that holds the list
+function countUnread(data) {
+  if (data && typeof data.unreadCount === "number") return data.unreadCount;
+  if (data && typeof data.unread === "number") return data.unread;
+
+  const list = Array.isArray(data) ? data : data?.notifications || data?.items || data?.data || [];
+  if (!Array.isArray(list)) return 0;
+  return list.filter((n) => !(n.isRead ?? n.IsRead ?? n.read ?? false)).length;
+}
+
 export default function Topbar({
   role,
   notificationsHref = "/notifications",
   searchHref = "/alumni-hub/directory",
   showSearch = true,
   searchPlaceholder = "Search alumni by name, skills, company...",
-  unreadCount = 0,
   fallbackName = "",
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [user, setUser] = useState({ name: fallbackName, role: role || "Student", photoUrl: "" });
-  const unread = unreadCount; // pass the count from the layout (later: /api/notifications)
+  const [unread, setUnread] = useState(0);
+
+  // The count comes from the server, so it always matches the Notifications page
+  const loadUnread = useCallback(() => {
+    api("/notifications")
+      .then((d) => setUnread(countUnread(d)))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    loadUnread();
+    const timer = setInterval(loadUnread, REFRESH_MS);
+    // A page can announce a change with: window.dispatchEvent(new Event("notifications-changed"))
+    window.addEventListener("notifications-changed", loadUnread);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("notifications-changed", loadUnread);
+    };
+  }, [loadUnread]);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,7 +126,7 @@ export default function Topbar({
           <Bell size={22} />
           {unread > 0 && (
             <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white">
-              {unread}
+              {unread > 99 ? "99+" : unread}
             </span>
           )}
         </Link>
