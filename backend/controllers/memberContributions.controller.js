@@ -239,7 +239,7 @@ exports.submitPayment = async (req, res, next) => {
         PaymentDate: paymentDate,
         ReceiptData: req.file.buffer,
         ReceiptType: req.file.mimetype,
-        IsAnonymous: req.body.isAnonymous === "true" || req.body.isAnonymous === "1" ? 1 : 0,
+        IsAnonymous: req.body.isAnonymous === "true" || req.body.isAnonymous === "1",
       },
       select: { PaymentID: true, Status: true },
     });
