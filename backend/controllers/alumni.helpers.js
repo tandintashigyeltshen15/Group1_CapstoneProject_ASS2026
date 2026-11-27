@@ -43,7 +43,7 @@ function isRealDate(y, m, d) {
 
 // "YYYY-MM-DD" -> Date, or null if invalid.
 function parseDate(text) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})?)?$/.exec(text);
   if (!m || !isRealDate(+m[1], +m[2], +m[3])) return null;
   return new Date(text + "T00:00:00.000Z");
 }
