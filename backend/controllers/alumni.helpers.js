@@ -43,7 +43,7 @@ function isRealDate(y, m, d) {
 
 // "YYYY-MM-DD" -> Date, or null if invalid.
 function parseDate(text) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})?)?$/.exec(text);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
   if (!m || !isRealDate(+m[1], +m[2], +m[3])) return null;
   return new Date(text + "T00:00:00.000Z");
 }
@@ -51,7 +51,7 @@ function parseDate(text) {
 // "YYYY-MM-DD" or "YYYY-MM-DDTHH:mm" (seconds optional) -> Date, or null if invalid.
 // A time without a timezone is read in the server's timezone.
 function parseDateTime(text) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(text);
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})?)?$/.exec(text);
   if (!m || !isRealDate(+m[1], +m[2], +m[3])) return null;
   if (m[4] !== undefined && (+m[4] > 23 || +m[5] > 59 || +(m[6] || 0) > 59)) return null;
   const date = new Date(text.replace(" ", "T"));
